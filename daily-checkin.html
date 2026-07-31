@@ -1,0 +1,2206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CC GOGOGO</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CC GOGOGO">
+    <meta name="theme-color" content="#f0912e">
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --bg: #fdf7ef;
+            --card: #ffffff;
+            --primary: #f0912e;
+            --primary-dark: #d97916;
+            --accent: #7ca98f;
+            --accent-light: #eaf3ee;
+            --text: #4a4237;
+            --text-light: #a2917d;
+            --border: #f3e7d5;
+            --shadow: 0 2px 12px rgba(190, 130, 60, .10);
+            --radius: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding-bottom: 80px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #ffc06e, #f0912e);
+            color: #fff;
+            padding: 20px 16px 14px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+
+        .date-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 8px;
+        }
+
+        .date-nav button {
+            background: rgba(255, 255, 255, .25);
+            border: none;
+            color: #fff;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .date-nav input[type=date] {
+            background: rgba(255, 255, 255, .2);
+            border: none;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+
+        .date-nav input::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+
+        .not-today-tip {
+            font-size: 12px;
+            margin-top: 4px;
+            opacity: .9;
+        }
+
+        .not-today-tip a {
+            color: #fff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        nav.tabs {
+            display: flex;
+            background: var(--card);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            overflow-x: auto;
+        }
+
+        nav.tabs button {
+            flex: 1;
+            min-width: 64px;
+            padding: 12px 4px;
+            border: none;
+            background: none;
+            font-size: 14px;
+            color: var(--text-light);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+
+        nav.tabs button.active {
+            color: var(--primary-dark);
+            border-bottom-color: var(--primary);
+            font-weight: 600;
+        }
+
+        main {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 16px 14px;
+        }
+
+        .tab-page {
+            display: none;
+        }
+
+        .tab-page.active {
+            display: block;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary-dark);
+        }
+
+        .card h2 .badge {
+            font-size: 12px;
+            font-weight: normal;
+            color: var(--text-light);
+            margin-left: auto;
+        }
+
+        /* 习惯打卡 */
+        .habit-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .habit-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 12px;
+            background: #faf6f1;
+            border: 1.5px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            transition: all .15s;
+        }
+
+        .habit-item.done {
+            background: var(--accent-light);
+            border-color: var(--accent);
+        }
+
+        .habit-item .icon {
+            font-size: 20px;
+        }
+
+        .habit-item .name {
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .habit-item .time {
+            font-size: 11px;
+            color: var(--text-light);
+        }
+
+        .habit-item.done .check {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .habit-item.auto {
+            cursor: default;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-bar>div {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd9a0, var(--primary));
+            border-radius: 4px;
+            transition: width .3s;
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        /* 喝水 */
+        .water-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .water-cups {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .cup {
+            width: 34px;
+            height: 42px;
+            border-radius: 6px 6px 10px 10px;
+            border: 2px solid #bcd9ec;
+            background: #fff;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-size: 10px;
+            color: #7fb3d3;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cup.full {
+            background: linear-gradient(to top, #a8d4ee 90%, #fff 90%);
+            color: #4a90b8;
+        }
+
+        .water-btns button {
+            background: var(--accent-light);
+            border: 1.5px solid var(--accent);
+            color: var(--accent);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+            margin-right: 8px;
+        }
+
+        .water-total {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+
+        .water-total b {
+            color: #4a90b8;
+            font-size: 18px;
+        }
+
+        /* 补剂 */
+        .supp-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .supp-chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1.5px solid var(--border);
+            background: #faf6f1;
+            cursor: pointer;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        .supp-chip.done {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .supp-manage {
+            font-size: 12px;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 8px 4px;
+            text-decoration: underline;
+        }
+
+        /* 时间轴 */
+        .timeline {
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .timeline::before {
+            content: "";
+            position: absolute;
+            left: 5px;
+            top: 6px;
+            bottom: 6px;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .tl-item {
+            position: relative;
+            padding: 4px 0 12px;
+        }
+
+        .tl-item::before {
+            content: "";
+            position: absolute;
+            left: -19px;
+            top: 11px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .tl-item .tl-time {
+            font-size: 12px;
+            color: var(--primary-dark);
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .tl-item .tl-label {
+            font-size: 14px;
+        }
+
+        .empty-tip {
+            color: var(--text-light);
+            font-size: 13px;
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        /* 通用输入 */
+        textarea,
+        input[type=text] {
+            width: 100%;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text);
+            background: #fdfbf8;
+            resize: vertical;
+        }
+
+        textarea:focus,
+        input[type=text]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn.ghost {
+            background: none;
+            border: 1.5px solid var(--primary);
+            color: var(--primary-dark);
+        }
+
+        .btn.small {
+            padding: 5px 14px;
+            font-size: 13px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .saved-tip {
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        /* 列表条目（感恩/想法/知识） */
+        .entry-list {
+            margin-top: 12px;
+        }
+
+        .entry {
+            background: #faf6f1;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .entry .meta {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 4px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .entry .del {
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            border: none;
+            background: none;
+            color: #d0c5bc;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .entry .del:hover {
+            color: var(--primary);
+        }
+
+        .entry .tag {
+            display: inline-block;
+            font-size: 11px;
+            background: var(--accent-light);
+            color: var(--accent);
+            border-radius: 8px;
+            padding: 0 8px;
+            margin-right: 6px;
+        }
+
+        /* 语音按钮 */
+        .mic-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 1.5px solid var(--primary);
+            background: #fff;
+            color: var(--primary-dark);
+            font-size: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .mic-btn.recording {
+            background: var(--primary);
+            color: #fff;
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(232, 146, 124, .5)
+            }
+
+            70% {
+                box-shadow: 0 0 0 12px rgba(232, 146, 124, 0)
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(232, 146, 124, 0)
+            }
+        }
+
+        .input-with-mic {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .input-with-mic textarea {
+            flex: 1;
+        }
+
+        /* 三餐 */
+        .meal-block {
+            margin-bottom: 16px;
+        }
+
+        .meal-block .meal-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .rating-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .rating-row button {
+            flex: 1;
+            padding: 7px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text-light);
+        }
+
+        .rating-row button.sel-good {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .rating-row button.sel-mid {
+            background: #fdf3e0;
+            border-color: #e0b060;
+            color: #c08a2d;
+            font-weight: 600;
+        }
+
+        .rating-row button.sel-bad {
+            background: #fdeaea;
+            border-color: #e06a5a;
+            color: #c0392b;
+            font-weight: 600;
+        }
+
+        /* 加餐块 */
+        .snack-block {
+            position: relative;
+            padding-bottom: 6px;
+            border-bottom: 1px dashed var(--border);
+            margin-bottom: 12px;
+        }
+
+        .snack-block:last-child {
+            border-bottom: none;
+        }
+
+        .snack-block .del {
+            position: absolute;
+            right: 0;
+            top: 0;
+            border: none;
+            background: none;
+            color: #d0c5bc;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .snack-block .del:hover {
+            color: var(--primary);
+        }
+
+        /* 排便记录 */
+        .bowel-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .bowel-label {
+            font-size: 13px;
+            color: var(--text-light);
+            width: 60px;
+        }
+
+        .bowel-row button {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1.5px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text-light);
+        }
+
+        .bowel-row button.sel {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* 日历 */
+        .cal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .cal-head button {
+            background: none;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .cal-grid .dow {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-light);
+            padding: 4px 0;
+        }
+
+        .cal-cell {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            gap: 2px;
+        }
+
+        .cal-cell:hover {
+            border-color: var(--primary);
+        }
+
+        .cal-cell.other {
+            color: #d8cfc7;
+            cursor: default;
+        }
+
+        .cal-cell.today {
+            border-color: var(--primary);
+            font-weight: 700;
+        }
+
+        .cal-cell.selected {
+            background: #fdeae6;
+        }
+
+        .cal-dot {
+            width: 22px;
+            height: 5px;
+            border-radius: 3px;
+            background: var(--border);
+        }
+
+        .cal-dot.p1 {
+            background: #fbe3c0;
+        }
+
+        .cal-dot.p2 {
+            background: #f6b563;
+        }
+
+        .cal-dot.p3 {
+            background: var(--accent);
+        }
+
+        /* 统计 */
+        .stat-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background: #faf6f1;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-box .num {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .stat-box .lbl {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        table.stat-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        table.stat-table th,
+        table.stat-table td {
+            padding: 8px 6px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table.stat-table th {
+            color: var(--text-light);
+            font-weight: normal;
+            font-size: 12px;
+        }
+
+        .rate-bar {
+            display: inline-block;
+            width: 70px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .rate-bar>i {
+            display: block;
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        /* 数据管理 */
+        .data-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .data-btns button,
+        .data-btns label {
+            padding: 12px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border);
+            background: #faf6f1;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+            color: var(--text);
+        }
+
+        .data-btns .desc {
+            font-size: 12px;
+            color: var(--text-light);
+            display: block;
+        }
+
+        .danger {
+            color: #c0392b !important;
+        }
+
+        @media (max-width:480px) {
+            .habit-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stat-summary {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* 临时任务 */
+        .task-section {
+            margin-top: 14px;
+            border-top: 1px dashed var(--border);
+            padding-top: 12px;
+        }
+
+        .task-title {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #faf6f1;
+            margin-bottom: 6px;
+        }
+
+        .task-item .task-check {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1.5px solid var(--border);
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .task-item.done .task-check {
+            background: var(--accent-light);
+            border-color: var(--accent);
+        }
+
+        .task-item .task-text {
+            flex: 1;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .task-item.done .task-text {
+            color: var(--text-light);
+            text-decoration: line-through;
+        }
+
+        .task-item .task-time {
+            font-size: 11px;
+            color: var(--text-light);
+        }
+
+        .task-item .del {
+            border: none;
+            background: none;
+            color: #d0c5bc;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .task-item .del:hover {
+            color: var(--primary);
+        }
+
+        .task-add {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        /* 英语提升 */
+        .eng-streak {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        .eng-streak b {
+            color: var(--primary-dark);
+            font-size: 22px;
+            margin: 0 2px;
+        }
+
+        .eng-tip {
+            font-size: 12px;
+            background: #fdf3e0;
+            color: #c08a2d;
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .eng-task {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: #faf6f1;
+            border: 1.5px solid var(--border);
+            margin-bottom: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: all .15s;
+        }
+
+        .eng-task.done {
+            background: var(--accent-light);
+            border-color: var(--accent);
+        }
+
+        .eng-task .icon {
+            font-size: 18px;
+        }
+
+        .eng-task .body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .eng-task .name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .eng-task.done .name {
+            color: var(--accent);
+        }
+
+        .eng-task .desc {
+            font-size: 11px;
+            color: var(--text-light);
+        }
+
+        .eng-task .time {
+            font-size: 11px;
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+
+        .eng-task .go {
+            font-size: 12px;
+            color: var(--primary-dark);
+            border: 1.5px solid var(--primary);
+            border-radius: 14px;
+            padding: 3px 10px;
+            text-decoration: none;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .count-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: #fff;
+            font-size: 11px;
+            border-radius: 10px;
+            padding: 0 7px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        .eng-dec {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 1.5px solid var(--accent);
+            background: #fff;
+            color: var(--accent);
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .filter-chip {
+            padding: 5px 12px;
+            border-radius: 16px;
+            border: 1.5px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            color: var(--text-light);
+        }
+
+        .filter-chip.sel {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* 今日汇总 */
+        .summary .sum-top {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+
+        .summary .sum-sec {
+            margin-bottom: 12px;
+        }
+
+        .summary .sum-h {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            margin-bottom: 4px;
+        }
+
+        .summary .sum-item {
+            font-size: 14px;
+            padding: 3px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .summary .sum-t {
+            font-size: 11px;
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+
+        .eng-phrase {
+            margin-top: 12px;
+            border-top: 1px dashed var(--border);
+            padding-top: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🌸 CC GOGOGO</h1>
+        <div class="date-nav">
+            <button onclick="shiftDate(-1)">‹</button>
+            <input type="date" id="datePicker" onchange="setDate(this.value)">
+            <button onclick="shiftDate(1)">›</button>
+        </div>
+        <div class="not-today-tip" id="notTodayTip" style="display:none">正在查看历史记录 · <a
+                onclick="setDate(todayStr())">回到今天</a></div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+        <button data-tab="today" class="active">今日</button>
+        <button data-tab="english">英语</button>
+        <button data-tab="pregnancy">健康</button>
+        <button data-tab="thoughts">碎片</button>
+        <button data-tab="media">运营</button>
+        <button data-tab="history">历史</button>
+        <button data-tab="data">数据</button>
+    </nav>
+
+    <main>
+        <!-- ============ 今日 ============ -->
+        <div class="tab-page active" id="page-today">
+            <div class="card">
+                <h2>✅ 每日计划 <span class="badge" id="habitProgress"></span></h2>
+                <div class="habit-grid" id="habitGrid"></div>
+                <div class="progress-bar">
+                    <div id="habitBar" style="width:0%"></div>
+                </div>
+                <div class="progress-text" id="habitBarText"></div>
+                <div class="task-section">
+                    <div class="task-title">📌 临时任务</div>
+                    <div id="taskList"></div>
+                    <div class="task-add">
+                        <input type="text" id="taskInput" placeholder="添加今天的临时任务，回车确认…"
+                            onkeydown="if(event.key==='Enter')addTask()">
+                        <button class="btn small" onclick="addTask()">添加</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🕐 今日时间轴</h2>
+                <div class="timeline" id="timeline"></div>
+            </div>
+
+            <div class="card">
+                <h2>🌙 每日复盘 <span class="badge">随时添加</span></h2>
+                <div class="input-with-mic">
+                    <textarea id="reviewInput" rows="3" placeholder="今天做得好的、可以改进的、明天的重点……"></textarea>
+                    <button class="mic-btn" id="micReview" onclick="toggleMic('reviewInput','micReview')">🎙</button>
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addReview()">添加复盘</button></div>
+                <div class="entry-list" id="reviewList"></div>
+            </div>
+
+            <div class="card">
+                <h2>💛 感恩的心</h2>
+                <div class="input-with-mic">
+                    <textarea id="gratitudeInput" rows="2" placeholder="今天想感谢的人或事……"></textarea>
+                    <button class="mic-btn" id="micGratitude"
+                        onclick="toggleMic('gratitudeInput','micGratitude')">🎙</button>
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addGratitude()">记下这份感恩</button></div>
+                <div class="entry-list" id="gratitudeList"></div>
+            </div>
+
+            <div class="card">
+                <h2>🌆 今日汇总 <span class="badge">一天结束时回顾</span></h2>
+                <div id="dailySummary" class="summary"></div>
+                <div class="btn-row">
+                    <button class="btn ghost small" onclick="copySummary()">📋 复制汇总</button>
+                    <span class="saved-tip" id="summaryCopied"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 英语提升 ============ -->
+        <div class="tab-page" id="page-english">
+            <div class="card">
+                <h2>🎧 英语提升 <span class="badge" id="engBadge"></span></h2>
+                <div class="eng-streak" id="engStreak"></div>
+                <div class="eng-tip" id="engTip"></div>
+                <div id="engTaskList"></div>
+                <div class="eng-phrase">
+                    <div class="task-title">✍️ 英语知识点 · 听到/用到的好表达、新单词，随时记、可累加（记 1 条即完成第 5 项）</div>
+                    <div class="input-with-mic">
+                        <textarea id="engPhrase" rows="2"
+                            placeholder="例如：Let me push back on that. — 会议中委婉表达不同意见"></textarea>
+                        <button class="mic-btn" id="micEngPhrase"
+                            onclick="toggleMic('engPhrase','micEngPhrase')">🎙</button>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn small" onclick="addEngPhrase()">记录</button>
+                        <span class="saved-tip" id="engPhraseSaved"></span>
+                        <span style="font-size:12px;color:var(--text-light);margin-left:auto"
+                            id="engPhraseCount"></span>
+                    </div>
+                    <div class="entry-list" id="engPhraseList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 健康 ============ -->
+        <div class="tab-page" id="page-pregnancy">
+            <div class="card">
+                <h2>🍚 一日三餐 · 控糖记录</h2>
+                <div id="mealBlocks"></div>
+            </div>
+            <div class="card">
+                <h2>🍎 加餐 <span class="badge">随时添加</span></h2>
+                <div id="snackList"></div>
+                <div class="btn-row"><button class="btn small" onclick="addSnack()">+ 添加加餐</button></div>
+            </div>
+            <div class="card">
+                <h2>💧 喝水记录 <span class="badge">目标 2000ml</span></h2>
+                <div class="water-row">
+                    <div class="water-cups" id="waterCups"></div>
+                </div>
+                <div class="btn-row water-btns">
+                    <button onclick="addWater(250)">+250ml</button>
+                    <button onclick="addWater(500)">+500ml</button>
+                    <button onclick="addWater(-250)">−250ml</button>
+                    <span class="water-total">已喝 <b id="waterTotal">0</b> ml</span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>💊 补剂打卡 <span class="badge" id="suppBadge"></span></h2>
+                <div class="supp-list" id="suppList"></div>
+                <span class="supp-manage" onclick="manageSupplements()">管理补剂清单</span>
+            </div>
+            <div class="card">
+                <h2>🏃 锻炼记录 <span class="badge">随时添加</span></h2>
+                <div class="input-with-mic">
+                    <textarea id="exerciseInput" rows="2" placeholder="记录锻炼了什么？例如：孕妇瑜伽 20 分钟 / 散步 3000 步"></textarea>
+                    <button class="mic-btn" id="micExercise"
+                        onclick="toggleMic('exerciseInput','micExercise')">🎙</button>
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addExercise()">记录锻炼</button></div>
+                <div class="entry-list" id="exerciseList"></div>
+            </div>
+            <div class="card">
+                <h2>💩 排便记录 <span class="badge">随时添加</span></h2>
+                <div id="bowelForm"></div>
+                <input type="text" id="bowelNote" placeholder="颜色、形状、其他备注……" style="margin-top:8px">
+                <div class="btn-row"><button class="btn" onclick="addBowel()">记录这次</button></div>
+                <div class="entry-list" id="bowelList"></div>
+            </div>
+            <div class="card">
+                <h2>🤰 孕期日记 <span class="badge">随时添加</span></h2>
+                <div class="input-with-mic">
+                    <textarea id="pregDiaryInput" rows="4" placeholder="今天宝宝的胎动、身体的感受、心情、产检记录……"></textarea>
+                    <button class="mic-btn" id="micPregDiary"
+                        onclick="toggleMic('pregDiaryInput','micPregDiary')">🎙</button>
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addPregDiary()">添加日记</button></div>
+                <div class="entry-list" id="pregDiaryList"></div>
+            </div>
+        </div>
+
+        <!-- ============ 碎片（想法 + 知识） ============ -->
+        <div class="tab-page" id="page-thoughts">
+            <div class="card">
+                <h2>💭 想法碎片</h2>
+                <div class="input-with-mic">
+                    <textarea id="thoughtInput" rows="3" placeholder="随时记录闪过的想法…… 点右侧麦克风可语音输入"></textarea>
+                    <button class="mic-btn" id="micThought" onclick="toggleMic('thoughtInput','micThought')">🎙</button>
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addThought()">记录想法</button></div>
+                <div class="entry-list" id="thoughtList"></div>
+            </div>
+            <div class="card">
+                <h2>📚 有意思的知识</h2>
+                <div style="display:flex;gap:8px;margin-bottom:8px" id="knowledgeTypeRow">
+                    <button class="btn small ghost" data-ktype="播客" onclick="selectKType(this)">🎧 播客</button>
+                    <button class="btn small ghost" data-ktype="文章" onclick="selectKType(this)">📰 文章</button>
+                    <button class="btn small ghost" data-ktype="其他" onclick="selectKType(this)">✨ 其他</button>
+                </div>
+                <div class="input-with-mic">
+                    <textarea id="knowledgeInput" rows="3" placeholder="今天听到/看到的有趣内容、金句、启发……"></textarea>
+                    <button class="mic-btn" id="micKnowledge"
+                        onclick="toggleMic('knowledgeInput','micKnowledge')">🎙</button>
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addKnowledge()">收藏知识</button></div>
+                <div class="entry-list" id="knowledgeList"></div>
+            </div>
+        </div>
+
+        <!-- ============ 自媒体运营 ============ -->
+        <div class="tab-page" id="page-media">
+            <div class="card">
+                <h2>📣 自媒体运营 <span class="badge">按 tag 汇总</span></h2>
+                <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="mediaTagRow">
+                    <button class="btn small ghost" data-mtag="小红书" onclick="selectMediaTag(this)">📕 小红书</button>
+                    <button class="btn small ghost" data-mtag="抖音" onclick="selectMediaTag(this)">🎵 抖音</button>
+                    <button class="btn small ghost" data-mtag="素材整理" onclick="selectMediaTag(this)">🗂 素材整理</button>
+                    <button class="btn small ghost" data-mtag="其他" onclick="selectMediaTag(this)">✨ 其他</button>
+                </div>
+                <div class="input-with-mic">
+                    <textarea id="mediaInput" rows="2" placeholder="发布了什么 / 整理了什么素材 / 灵感选题……"></textarea>
+                    <button class="mic-btn" id="micMedia" onclick="toggleMic('mediaInput','micMedia')">🎙</button>
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addMedia()">记录一条</button></div>
+                <div style="display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap" id="mediaFilterRow"></div>
+                <div class="entry-list" id="mediaList"></div>
+            </div>
+        </div>
+
+        <!-- ============ 历史 ============ -->
+        <div class="tab-page" id="page-history">
+            <div class="card">
+                <h2>📅 日历视图 <span class="badge">点击日期查看/补录</span></h2>
+                <div class="cal-head">
+                    <button onclick="shiftMonth(-1)">‹</button>
+                    <b id="calTitle"></b>
+                    <button onclick="shiftMonth(1)">›</button>
+                </div>
+                <div class="cal-grid" id="calGrid"></div>
+            </div>
+            <div class="card">
+                <h2>📊 打卡统计</h2>
+                <div class="stat-summary" id="statSummary"></div>
+                <table class="stat-table">
+                    <thead>
+                        <tr>
+                            <th>习惯</th>
+                            <th>连续天数</th>
+                            <th>近30天完成率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============ 数据 ============ -->
+        <div class="tab-page" id="page-data">
+            <div class="card">
+                <h2>💾 数据管理</h2>
+                <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">
+                    所有数据仅保存在本机浏览器（localStorage）中，不会上传。建议定期导出 JSON 备份。
+                </p>
+                <div class="data-btns">
+                    <button onclick="exportJSON()">📦 导出 JSON（完整备份 / AI 分析）
+                        <span class="desc">包含全部原始数据，可重新导入恢复，也适合喂给 AI 做分析</span></button>
+                    <button onclick="exportCSV()">📊 导出 CSV（表格查看）
+                        <span class="desc">每日一行的打卡汇总，可用 Excel / Numbers 打开</span></button>
+                    <label>📥 导入 JSON 备份
+                        <span class="desc">从之前导出的 JSON 文件恢复数据（会与现有数据按日期合并）</span>
+                        <input type="file" accept=".json" style="display:none" onchange="importJSON(this)">
+                    </label>
+                    <button class="danger" onclick="clearAll()">🗑 清空全部数据
+                        <span class="desc">危险操作，清空前请先导出备份</span></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        "use strict";
+        /* ==================== 数据层 ==================== */
+        const STORE_KEY = "dailyCheckin.v1";
+        const HABITS = [
+            { id: "english", icon: "🎧", name: "英语提升", auto: true },
+            { id: "tech", icon: "💻", name: "技术学习" },
+            { id: "reading", icon: "📖", name: "阅读" },
+            { id: "exercise", icon: "🏃‍♀️", name: "锻炼" },
+            { id: "sugar", icon: "🍬", name: "控糖" },
+            { id: "supplement", icon: "💊", name: "补剂", auto: true },
+            { id: "water", icon: "💧", name: "2000毫升水", auto: true },
+            { id: "skincare", icon: "🧴", name: "护肤" },
+            { id: "diary", icon: "✍️", name: "日记" },
+            { id: "review", icon: "🌙", name: "复盘", auto: true },
+        ];
+        const MEALS = [
+            { id: "breakfast", icon: "🌅", name: "早餐" },
+            { id: "lunch", icon: "☀️", name: "午餐" },
+            { id: "dinner", icon: "🌆", name: "晚餐" },
+        ];
+        const RATINGS = [
+            { id: "good", label: "😊 控糖良好", cls: "sel-good" },
+            { id: "mid", label: "😐 一般", cls: "sel-mid" },
+            { id: "bad", label: "😅 超标了", cls: "sel-bad" },
+        ];
+        const BOWEL_AMOUNTS = ["少", "中", "多"];
+        const BOWEL_HEALTH = [
+            { id: "good", label: "😊 健康", cls: "sel-good" },
+            { id: "mid", label: "😐 一般", cls: "sel-mid" },
+            { id: "bad", label: "😟 不佳", cls: "sel-bad" },
+        ];
+        /* 任一微任务完成即算「英语提升」当日打卡 */
+        const ENG_TASKS = [
+            { id: "video", icon: "📺", name: "看 1 条英文技术视频", desc: "想刷手机时的替代动作 · 5-10 分钟，程序员的「短视频」", link: "https://www.youtube.com/@Fireship/videos", linkName: "Fireship ▶" },
+            { id: "podcast", icon: "🎧", name: "听英文播客 10 分钟", desc: "通勤 / 走路 / 做家务时顺便完成，不占用额外时间", link: "https://syntax.fm/", linkName: "Syntax ▶" },
+            { id: "speaking", icon: "🗣️", name: "AI 口语对话 10 分钟", desc: "语音模式：讲今天写的代码 / 预演 standup / mock 会议发言", link: "https://chatgpt.com/", linkName: "ChatGPT ▶" },
+            { id: "shadowing", icon: "🔁", name: "跟读 5 句", desc: "看视频时暂停跟读，模仿语音语调；睡前复习也可", link: "https://youglish.com/", linkName: "YouGlish ▶" },
+            { id: "phrase", icon: "✍️", name: "记 1 条知识点", desc: "好表达、新单词随时记在下方，可累加，自动完成", auto: true },
+        ];
+        const ENG_TIPS = [
+            "想刷小红书？先看完 1 条 Fireship 再说 —— 它同样是快节奏、有梗的「短视频」，但全程在练听力 👆",
+            "最低目标只有 1 项，5 分钟就能完成。先启动，别追求完美 ✊",
+            "开会前 2 分钟：用英语在心里预演一遍你要说的话，就当口语练习 🗣️",
+            "通勤路上戴上耳机放播客 = 今天已完成 1 项，零成本打卡 🎧",
+            "听到同事说了个地道表达？马上记到「今日一句」里 ✍️",
+            "连续天数比学习时长更重要 —— 别让 streak 断掉 🔥",
+            "把学英语当成刷手机：随手点开、随时暂停、不需要仪式感 📱",
+        ];
+
+        let store = loadStore();
+        let currentDate = todayStr();
+        let calYear, calMonth; // 日历视图
+        let kType = "播客";
+
+        function loadStore() {
+            try {
+                const raw = localStorage.getItem(STORE_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (e) { console.error(e); }
+            return { days: {}, settings: { supplements: ["DHA", "钙", "铁", "复合维生素"] } };
+        }
+        function save() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+        function day(d) {
+            d = d || currentDate;
+            if (!store.days[d]) store.days[d] = {};
+            const o = store.days[d];
+            o.habits = o.habits || {};   // {id:{done,time}}
+            o.waterLogs = o.waterLogs || [];   // [{time,amount}]
+            o.supplements = o.supplements || {};   // {name:{done,time}}
+            o.review = o.review || "";
+            o.reviewTime = o.reviewTime || "";
+            o.reviews = o.reviews || [];   // [{text,time}]
+            if (o.review && o.review.trim()) o.reviews.push({ text: o.review.trim(), time: o.reviewTime || "" });
+            delete o.review; delete o.reviewTime;
+            o.gratitude = o.gratitude || [];   // [{text,time}]
+            o.meals = o.meals || {};   // {breakfast:{food,rating,time}}
+            o.snacks = o.snacks || [];   // [{food,rating,time}]
+            o.exercises = o.exercises || [];   // [{text,time}]
+            o.bowels = o.bowels || [];   // [{honey,amount,healthy,note,time}]
+            // 迁移旧版固定加餐
+            if (o.meals.snack && (o.meals.snack.food || o.meals.snack.rating)) {
+                o.snacks.push({ food: o.meals.snack.food || "", rating: o.meals.snack.rating || "", time: o.meals.snack.time || "" });
+            }
+            delete o.meals.snack;
+            o.pregDiary = o.pregDiary || "";
+            o.pregDiaryTime = o.pregDiaryTime || "";
+            o.pregDiaries = o.pregDiaries || [];   // [{text,time}]
+            if (o.pregDiary && o.pregDiary.trim()) o.pregDiaries.push({ text: o.pregDiary.trim(), time: o.pregDiaryTime || "" });
+            delete o.pregDiary; delete o.pregDiaryTime;
+            o.media = o.media || [];   // [{text,tag,time}] 自媒体运营
+            o.thoughts = o.thoughts || [];   // [{text,time,voice}]
+            o.knowledge = o.knowledge || [];   // [{text,type,time}]
+            o.tasks = o.tasks || [];   // [{text,done,time}]
+            o.english = o.english || { tasks: {} }; // tasks: {id:{count,time}}
+            o.english.tasks = o.english.tasks || {};
+            o.english.phrases = o.english.phrases || []; // [{text,time}]
+            // 迁移旧版单条 phrase 字符串
+            if (o.english.phrase && o.english.phrase.trim()) {
+                o.english.phrases.push({ text: o.english.phrase.trim(), time: o.english.phraseTime || "" });
+                delete o.english.phrase; delete o.english.phraseTime;
+            }
+            // 迁移旧版英语微任务 done → count
+            Object.keys(o.english.tasks).forEach(k => {
+                const t = o.english.tasks[k];
+                if (t && t.count == null) { t.count = t.done ? 1 : 0; delete t.done; }
+                if (t && t.count <= 0) delete o.english.tasks[k];
+            });
+            return o;
+        }
+        function todayStr() {
+            const d = new Date();
+            return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        }
+        function nowTime() {
+            const d = new Date();
+            return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+        }
+        function waterTotal(d) { return day(d).waterLogs.reduce((s, l) => s + l.amount, 0); }
+        function isHabitDone(id, d) {
+            const o = day(d);
+            // english 兼容旧版手动打卡数据
+            if (id === "english") return ENG_TASKS.some(t => isEngTaskDone(t.id, d)) || !!(o.habits.english && o.habits.english.done);
+            if (id === "water") return waterTotal(d) >= 2000;
+            if (id === "supplement") {
+                const list = store.settings.supplements;
+                return list.length > 0 && list.every(n => o.supplements[n] && o.supplements[n].done);
+            }
+            if (id === "review") return day(d).reviews.length > 0;
+            return !!(o.habits[id] && o.habits[id].done);
+        }
+        function habitDoneCount(d) { return HABITS.filter(h => isHabitDone(h.id, d)).length; }
+
+        /* ==================== 日期切换 ==================== */
+        function setDate(d) {
+            if (!d) return;
+            currentDate = d;
+            document.getElementById("datePicker").value = d;
+            document.getElementById("notTodayTip").style.display = (d === todayStr()) ? "none" : "block";
+            renderAll();
+        }
+        function shiftDate(n) {
+            const d = new Date(currentDate + "T12:00:00");
+            d.setDate(d.getDate() + n);
+            setDate(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"));
+        }
+
+        /* ==================== Tabs ==================== */
+        document.getElementById("tabs").addEventListener("click", e => {
+            const btn = e.target.closest("button"); if (!btn) return;
+            document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b === btn));
+            document.querySelectorAll(".tab-page").forEach(p => p.classList.toggle("active", p.id === "page-" + btn.dataset.tab));
+            if (btn.dataset.tab === "history") renderHistory();
+        });
+
+        /* ==================== 习惯打卡 ==================== */
+        function toggleHabit(id) {
+            const h = HABITS.find(x => x.id === id);
+            if (h.auto) return;
+            const o = day();
+            if (o.habits[id] && o.habits[id].done) delete o.habits[id];
+            else o.habits[id] = { done: true, time: nowTime() };
+            save(); renderToday();
+        }
+        function renderHabits() {
+            const grid = document.getElementById("habitGrid");
+            grid.innerHTML = HABITS.map(h => {
+                const done = isHabitDone(h.id);
+                let time = "";
+                if (done) {
+                    const o = day();
+                    if (h.id === "water") { const last = o.waterLogs[o.waterLogs.length - 1]; time = last ? last.time : ""; }
+                    else if (h.id === "supplement") { const ts = Object.values(o.supplements).filter(s => s.done).map(s => s.time).sort(); time = ts[ts.length - 1] || ""; }
+                    else if (h.id === "review") { const rs = o.reviews; time = rs.length ? rs[rs.length - 1].time : ""; }
+                    else if (h.id === "english") { const ts = Object.values(o.english.tasks).filter(t => t.count > 0).map(t => t.time).concat(o.english.phrases.map(p => p.time)).filter(Boolean).sort(); time = ts[ts.length - 1] || ""; }
+                    else time = o.habits[h.id].time || "";
+                }
+                return `<div class="habit-item ${done ? "done" : ""} ${h.auto ? "auto" : ""}" onclick="toggleHabit('${h.id}')" title="${h.auto ? "该项自动完成" : "点击打卡"}">
+      <span class="icon">${h.icon}</span>
+      <span class="name">${h.name}${h.auto ? "<span style='font-size:10px;color:var(--text-light)'> ·自动</span>" : ""}</span>
+      ${done ? `<span class="time">${time}</span><span class="check">✓</span>` : ""}
+    </div>`;
+            }).join("");
+            const n = habitDoneCount(), total = HABITS.length;
+            document.getElementById("habitProgress").textContent = `${n}/${total}`;
+            document.getElementById("habitBar").style.width = (n / total * 100) + "%";
+            document.getElementById("habitBarText").textContent = n === total ? "🎉 今日全部完成，太棒啦！" : `已完成 ${n}/${total}`;
+        }
+
+        /* ==================== 英语提升 ==================== */
+        function isEngTaskDone(id, d) {
+            const e = day(d).english;
+            if (id === "phrase") return e.phrases.length > 0;
+            return !!(e.tasks[id] && e.tasks[id].count > 0);
+        }
+        function logEngTask(id) {
+            const t = ENG_TASKS.find(x => x.id === id);
+            if (t.auto) { document.getElementById("engPhrase").focus(); return; }
+            const e = day().english;
+            const rec = e.tasks[id] || { count: 0 };
+            rec.count = (rec.count || 0) + 1;
+            rec.time = nowTime();
+            e.tasks[id] = rec;
+            save(); renderToday();
+        }
+        function decEngTask(id) {
+            const e = day().english;
+            const rec = e.tasks[id];
+            if (!rec) return;
+            rec.count = (rec.count || 0) - 1;
+            if (rec.count <= 0) delete e.tasks[id];
+            else rec.time = nowTime();
+            save(); renderToday();
+        }
+        function addEngPhrase() {
+            const ta = document.getElementById("engPhrase");
+            const text = ta.value.trim(); if (!text) return;
+            day().english.phrases.push({ text, time: nowTime() });
+            ta.value = ""; save(); flash("engPhraseSaved"); renderToday();
+        }
+        function delEngPhrase(d, i) { day(d).english.phrases.splice(i, 1); save(); renderToday(); }
+        function engStreak() {
+            const today = todayStr();
+            let streak = 0;
+            for (let i = 0; ; i++) {
+                const d = offsetDate(today, -i);
+                if (isHabitDone("english", d)) streak++;
+                else { if (i === 0) continue; break; } // 今天还没做不打断昨天起的记录
+            }
+            return streak;
+        }
+        function renderEnglish() {
+            const e = day().english;
+            const doneCount = ENG_TASKS.filter(t => isEngTaskDone(t.id)).length;
+            document.getElementById("engBadge").textContent = `${doneCount}/${ENG_TASKS.length} · 任 1 项即打卡`;
+            const streak = engStreak();
+            document.getElementById("engStreak").innerHTML =
+                streak > 0 ? `🔥 已连续 <b>${streak}</b> 天，别断掉！` : `今天完成任意 1 项，开启你的连续记录 🔥`;
+            const dayIdx = Math.floor(new Date(currentDate + "T12:00:00").getTime() / 86400000);
+            document.getElementById("engTip").textContent = "💡 " + ENG_TIPS[dayIdx % ENG_TIPS.length];
+            document.getElementById("engTaskList").innerHTML = ENG_TASKS.map(t => {
+                if (t.id === "phrase") {
+                    const done = isEngTaskDone(t.id);
+                    const time = done && e.phrases.length ? e.phrases[e.phrases.length - 1].time : "";
+                    return `<div class="eng-task ${done ? "done" : ""}" onclick="logEngTask('${t.id}')">
+      <span class="icon">${t.icon}</span>
+      <span class="body"><div class="name">${done ? "✓ " : ""}${t.name}</div><div class="desc">${t.desc}</div></span>
+      ${time ? `<span class="time">${time}</span>` : ""}
+    </div>`;
+                }
+                const rec = e.tasks[t.id];
+                const count = rec ? rec.count : 0;
+                const done = count > 0;
+                return `<div class="eng-task ${done ? "done" : ""}" onclick="logEngTask('${t.id}')">
+      <span class="icon">${t.icon}</span>
+      <span class="body"><div class="name">${done ? "✓ " : ""}${t.name}${count > 1 ? ` <span class="count-badge">×${count}</span>` : ""}</div><div class="desc">${t.desc}</div></span>
+      ${done ? `<span class="time">${rec.time}</span>` : ""}
+      ${done ? `<button class="eng-dec" onclick="event.stopPropagation();decEngTask('${t.id}')">−</button>` : ""}
+      ${t.link ? `<a class="go" href="${t.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${t.linkName}</a>` : ""}
+    </div>`;
+            }).join("");
+            // 汇总全部知识点（含当天，近到远）
+            const items = [];
+            Object.keys(store.days).sort().reverse().forEach(d => {
+                const en = store.days[d].english;
+                if (en && en.phrases) en.phrases.forEach((p, i) => items.push({ d, i, p }));
+            });
+            document.getElementById("engPhraseCount").textContent = items.length ? `已积累 ${items.length} 条` : "";
+            document.getElementById("engPhraseList").innerHTML = items.length
+                ? items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${esc(x.p.text)}
+        <div class="meta"><span>${x.d} ${x.p.time}</span></div>
+        <button class="del" onclick="delEngPhrase('${x.d}',${x.i})">✕</button></div>`).join("")
+                : `<div class="empty-tip">还没有知识点，听到好表达随手记一条吧 ✨</div>`;
+        }
+
+        /* ==================== 临时任务 ==================== */
+        function addTask() {
+            const input = document.getElementById("taskInput");
+            const text = input.value.trim(); if (!text) return;
+            day().tasks.push({ text, done: false, time: "" });
+            input.value = ""; save(); renderToday();
+        }
+        function toggleTask(i) {
+            const t = day().tasks[i];
+            t.done = !t.done;
+            t.time = t.done ? nowTime() : "";
+            save(); renderToday();
+        }
+        function delTask(i) { day().tasks.splice(i, 1); save(); renderToday(); }
+        function renderTasks() {
+            const tasks = day().tasks;
+            document.getElementById("taskList").innerHTML = tasks.map((t, i) =>
+                `<div class="task-item ${t.done ? "done" : ""}">
+      <span class="task-check" onclick="toggleTask(${i})">${t.done ? "✓" : ""}</span>
+      <span class="task-text" onclick="toggleTask(${i})">${esc(t.text)}</span>
+      ${t.done ? `<span class="task-time">${t.time}</span>` : ""}
+      <button class="del" onclick="delTask(${i})">✕</button>
+    </div>`).join("");
+        }
+
+        /* ==================== 喝水 ==================== */
+        function addWater(amount) {
+            const o = day();
+            if (amount < 0) {
+                if (o.waterLogs.length) o.waterLogs.pop();
+            } else {
+                o.waterLogs.push({ time: nowTime(), amount });
+            }
+            save(); renderToday();
+        }
+        function renderWater() {
+            const total = waterTotal();
+            const cups = Math.min(8, Math.floor(total / 250));
+            document.getElementById("waterCups").innerHTML =
+                Array.from({ length: 8 }, (_, i) => `<div class="cup ${i < cups ? "full" : ""}" onclick="addWater(250)">${i < cups ? "" : "+"}</div>`).join("");
+            document.getElementById("waterTotal").textContent = total;
+        }
+
+        /* ==================== 补剂 ==================== */
+        function toggleSupp(name) {
+            const o = day();
+            if (o.supplements[name] && o.supplements[name].done) delete o.supplements[name];
+            else o.supplements[name] = { done: true, time: nowTime() };
+            save(); renderToday();
+        }
+        function renderSupps() {
+            const list = store.settings.supplements;
+            const o = day();
+            document.getElementById("suppList").innerHTML = list.map(n => {
+                const s = o.supplements[n];
+                return `<div class="supp-chip ${s && s.done ? "done" : ""}" onclick="toggleSupp('${n.replace(/'/g, "\\'")}')">${s && s.done ? "✓ " : ""}${n}</div>`;
+            }).join("") || `<span class="empty-tip">暂无补剂，点下方"管理补剂清单"添加</span>`;
+            const done = list.filter(n => o.supplements[n] && o.supplements[n].done).length;
+            document.getElementById("suppBadge").textContent = `${done}/${list.length}`;
+        }
+        function manageSupplements() {
+            const cur = store.settings.supplements.join("、");
+            const input = prompt("请输入补剂清单（用、或,分隔）：", cur);
+            if (input === null) return;
+            store.settings.supplements = input.split(/[、,，;；\s]+/).filter(Boolean);
+            save(); renderToday();
+        }
+
+        /* ==================== 时间轴 ==================== */
+        function collectTimeline(d) {
+            const o = day(d), ev = [];
+            HABITS.forEach(h => {
+                if (!h.auto && o.habits[h.id] && o.habits[h.id].done && o.habits[h.id].time)
+                    ev.push({ time: o.habits[h.id].time, label: `${h.icon} 完成打卡：${h.name}` });
+            });
+            o.waterLogs.forEach(l => ev.push({ time: l.time, label: `💧 喝水 ${l.amount}ml` }));
+            ENG_TASKS.forEach(t => {
+                if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${trunc(p.text, 18)}` }); });
+                else if (o.english.tasks[t.id] && o.english.tasks[t.id].count > 0) ev.push({ time: o.english.tasks[t.id].time, label: `${t.icon} 英语：${t.name}${o.english.tasks[t.id].count > 1 ? ` ×${o.english.tasks[t.id].count}` : ""}` });
+            });
+            o.tasks.forEach(t => { if (t.done && t.time) ev.push({ time: t.time, label: `📌 完成任务：${trunc(t.text, 18)}` }); });
+            Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}` }); });
+            o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${trunc(r.text, 18)}` }); });
+            o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${trunc(g.text, 18)}` }));
+            Object.entries(o.meals).forEach(([mid, m]) => {
+                const meal = MEALS.find(x => x.id === mid);
+                if (meal && m.time && (m.food || m.rating)) ev.push({ time: m.time, label: `${meal.icon} 记录${meal.name}${m.food ? "：" + trunc(m.food, 14) : ""}` });
+            });
+            o.snacks.forEach(s => { if (s.time && (s.food || s.rating)) ev.push({ time: s.time, label: `🍎 加餐${s.food ? "：" + trunc(s.food, 14) : ""}` }); });
+            o.exercises.forEach(x => ev.push({ time: x.time, label: `🏃 锻炼：${trunc(x.text, 18)}` }));
+            o.bowels.forEach(b => { const extra = [b.amount ? "量·" + b.amount : "", b.honey === true ? "蜂蜜露" : ""].filter(Boolean).join(" "); ev.push({ time: b.time, label: `💩 排便${extra ? "（" + extra + "）" : ""}` }); });
+            o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${trunc(p.text, 18)}` }); });
+            o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}` }));
+            o.thoughts.forEach(t => ev.push({ time: t.time, label: `💭 想法：${trunc(t.text, 18)}` }));
+            o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}` }));
+            ev.sort((a, b) => a.time.localeCompare(b.time));
+            return ev;
+        }
+        function trunc(s, n) { s = s.trim(); return s.length > n ? s.slice(0, n) + "…" : s; }
+        function renderTimeline() {
+            const ev = collectTimeline();
+            document.getElementById("timeline").innerHTML = ev.length
+                ? ev.map(e => `<div class="tl-item"><span class="tl-time">${e.time}</span><span class="tl-label">${esc(e.label)}</span></div>`).join("")
+                : `<div class="empty-tip">还没有记录，从第一个打卡开始吧 ✨</div>`;
+        }
+        function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+        /* ==================== 复盘 ==================== */
+        function addReview() {
+            const ta = document.getElementById("reviewInput");
+            const text = ta.value.trim(); if (!text) return;
+            day().reviews.push({ text, time: nowTime() });
+            ta.value = ""; save(); renderToday();
+        }
+        function delReview(i) { day().reviews.splice(i, 1); save(); renderToday(); }
+        function renderReviews() {
+            const list = day().reviews;
+            document.getElementById("reviewList").innerHTML = list.map((r, i) =>
+                `<div class="entry">${esc(r.text)}<div class="meta"><span>${r.time}</span></div>
+     <button class="del" onclick="delReview(${i})">✕</button></div>`).join("");
+        }
+        function flash(id, msg) {
+            const el = document.getElementById(id);
+            el.textContent = msg || "已保存 ✓";
+            setTimeout(() => el.textContent = "", 2000);
+        }
+
+        /* ==================== 今日汇总 ==================== */
+        function buildSummaryText(d) {
+            d = d || currentDate; const o = day(d);
+            const lines = [`🌸 ${d} 今日汇总`, `✅ 打卡 ${habitDoneCount(d)}/${HABITS.length} · 💧 ${waterTotal(d)}ml`];
+            const push = (title, arr) => { if (arr.length) { lines.push("", title); arr.forEach(x => lines.push(`· ${x.text}`)); } };
+            push("🌙 复盘", o.reviews);
+            push("💛 感恩", o.gratitude);
+            push("🤰 孕期日记", o.pregDiaries);
+            return lines.join("\n");
+        }
+        function renderSummary() {
+            const o = day();
+            const sec = (icon, title, arr) => arr.length
+                ? `<div class="sum-sec"><div class="sum-h">${icon} ${title}</div>${arr.map(x => `<div class="sum-item"><span>· ${esc(x.text)}</span><span class="sum-t">${x.time || ""}</span></div>`).join("")}</div>`
+                : "";
+            const body = sec("🌙", "复盘", o.reviews) + sec("💛", "感恩", o.gratitude) + sec("🤰", "孕期日记", o.pregDiaries);
+            document.getElementById("dailySummary").innerHTML =
+                `<div class="sum-top">✅ 打卡 ${habitDoneCount()}/${HABITS.length} · 💧 ${waterTotal()}ml</div>`
+                + (body || `<div class="empty-tip">写下复盘、感恩、日记后，这里会自动汇总，方便一天结束时回顾 ✨</div>`);
+        }
+        function copySummary() {
+            const text = buildSummaryText();
+            const done = () => flash("summaryCopied", "已复制 ✓");
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+            } else fallbackCopy(text, done);
+        }
+        function fallbackCopy(text, cb) {
+            const ta = document.createElement("textarea");
+            ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+            document.body.appendChild(ta); ta.select();
+            try { document.execCommand("copy"); } catch (e) { }
+            document.body.removeChild(ta); cb();
+        }
+
+        /* ==================== 感恩 ==================== */
+        function addGratitude() {
+            const ta = document.getElementById("gratitudeInput");
+            const text = ta.value.trim(); if (!text) return;
+            day().gratitude.push({ text, time: nowTime() });
+            ta.value = ""; save(); renderToday();
+        }
+        function delGratitude(i) { day().gratitude.splice(i, 1); save(); renderToday(); }
+        function renderGratitude() {
+            const list = day().gratitude;
+            document.getElementById("gratitudeList").innerHTML = list.map((g, i) =>
+                `<div class="entry">${esc(g.text)}<div class="meta"><span>${g.time}</span></div>
+     <button class="del" onclick="delGratitude(${i})">✕</button></div>`).join("");
+        }
+
+        /* ==================== 三餐 ==================== */
+        function renderMeals() {
+            const o = day();
+            document.getElementById("mealBlocks").innerHTML = MEALS.map(m => {
+                const rec = o.meals[m.id] || {};
+                return `<div class="meal-block">
+      <div class="meal-title">${m.icon} ${m.name}${rec.time ? `<span style="font-size:11px;color:var(--text-light)">${rec.time}</span>` : ""}</div>
+      <input type="text" value="${escAttr(rec.food || "")}" placeholder="吃了什么？例如：燕麦粥+鸡蛋+蓝莓"
+        onchange="saveMealFood('${m.id}', this.value)">
+      <div class="rating-row">
+        ${RATINGS.map(r => `<button class="${rec.rating === r.id ? r.cls : ""}" onclick="setMealRating('${m.id}','${r.id}')">${r.label}</button>`).join("")}
+      </div>
+    </div>`;
+            }).join("");
+        }
+        function escAttr(s) { return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); }
+        function saveMealFood(id, food) {
+            const o = day();
+            o.meals[id] = o.meals[id] || {};
+            o.meals[id].food = food.trim();
+            o.meals[id].time = o.meals[id].time || nowTime();
+            save(); renderTimeline();
+        }
+        function setMealRating(id, rating) {
+            const o = day();
+            o.meals[id] = o.meals[id] || {};
+            o.meals[id].rating = (o.meals[id].rating === rating) ? "" : rating;
+            o.meals[id].time = o.meals[id].time || nowTime();
+            save(); renderMeals(); renderTimeline();
+        }
+
+        /* ==================== 加餐（随时添加） ==================== */
+        function addSnack() {
+            day().snacks.push({ food: "", rating: "", time: nowTime() });
+            save(); renderSnacks();
+        }
+        function saveSnackFood(i, food) {
+            const s = day().snacks[i]; if (!s) return;
+            s.food = food.trim(); s.time = s.time || nowTime();
+            save(); renderTimeline();
+        }
+        function setSnackRating(i, rating) {
+            const s = day().snacks[i]; if (!s) return;
+            s.rating = (s.rating === rating) ? "" : rating;
+            s.time = s.time || nowTime();
+            save(); renderSnacks(); renderTimeline();
+        }
+        function delSnack(i) { day().snacks.splice(i, 1); save(); renderSnacks(); renderTimeline(); }
+        function renderSnacks() {
+            const snacks = day().snacks;
+            const el = document.getElementById("snackList");
+            if (!el) return;
+            el.innerHTML = snacks.length ? snacks.map((rec, i) => `<div class="snack-block">
+      <div class="meal-title">🍎 加餐${i + 1}${rec.time ? `<span style="font-size:11px;color:var(--text-light)">${rec.time}</span>` : ""}</div>
+      <button class="del" onclick="delSnack(${i})">✕</button>
+      <input type="text" value="${escAttr(rec.food || "")}" placeholder="吃了什么？例如：无糖酸奶+坚果"
+        onchange="saveSnackFood(${i}, this.value)">
+      <div class="rating-row">
+        ${RATINGS.map(r => `<button class="${rec.rating === r.id ? r.cls : ""}" onclick="setSnackRating(${i},'${r.id}')">${r.label}</button>`).join("")}
+      </div>
+    </div>`).join("") : `<div class="empty-tip">还没有加餐记录，点下方按钮添加</div>`;
+        }
+
+        /* ==================== 锻炼记录（随时添加） ==================== */
+        function addExercise() {
+            const ta = document.getElementById("exerciseInput");
+            const text = ta.value.trim(); if (!text) return;
+            day().exercises.push({ text, time: nowTime() });
+            ta.value = ""; save(); renderExercises(); renderTimeline();
+        }
+        function delExercise(i) { day().exercises.splice(i, 1); save(); renderExercises(); renderTimeline(); }
+        function renderExercises() {
+            const list = day().exercises;
+            const el = document.getElementById("exerciseList");
+            if (!el) return;
+            el.innerHTML = list.map((x, i) =>
+                `<div class="entry">${esc(x.text)}<div class="meta"><span>${x.time}</span></div>
+     <button class="del" onclick="delExercise(${i})">✕</button></div>`).join("");
+        }
+
+        /* ==================== 排便记录（随时添加） ==================== */
+        let bowelDraft = { honey: null, amount: "", healthy: "" };
+        function setBowel(field, val) {
+            bowelDraft[field] = (bowelDraft[field] === val) ? (field === "honey" ? null : "") : val;
+            renderBowelForm();
+        }
+        function renderBowelForm() {
+            const el = document.getElementById("bowelForm");
+            if (!el) return;
+            el.innerHTML = `
+      <div class="bowel-row"><span class="bowel-label">蜂蜜露</span>
+        <button class="${bowelDraft.honey === true ? "sel" : ""}" onclick="setBowel('honey',true)">是</button>
+        <button class="${bowelDraft.honey === false ? "sel" : ""}" onclick="setBowel('honey',false)">否</button>
+      </div>
+      <div class="bowel-row"><span class="bowel-label">便便量</span>
+        ${BOWEL_AMOUNTS.map(a => `<button class="${bowelDraft.amount === a ? "sel" : ""}" onclick="setBowel('amount','${a}')">${a}</button>`).join("")}
+      </div>
+      <div class="bowel-row"><span class="bowel-label">是否健康</span>
+        ${BOWEL_HEALTH.map(h => `<button class="${bowelDraft.healthy === h.id ? "sel" : ""}" onclick="setBowel('healthy','${h.id}')">${h.label}</button>`).join("")}
+      </div>`;
+        }
+        function addBowel() {
+            const note = document.getElementById("bowelNote").value.trim();
+            if (bowelDraft.honey === null && !bowelDraft.amount && !bowelDraft.healthy && !note) {
+                alert("请至少填写一项排便信息"); return;
+            }
+            day().bowels.push({ honey: bowelDraft.honey, amount: bowelDraft.amount, healthy: bowelDraft.healthy, note, time: nowTime() });
+            bowelDraft = { honey: null, amount: "", healthy: "" };
+            document.getElementById("bowelNote").value = "";
+            save(); renderBowelForm(); renderBowel(); renderTimeline();
+        }
+        function delBowel(i) { day().bowels.splice(i, 1); save(); renderBowel(); renderTimeline(); }
+        function renderBowel() {
+            const list = day().bowels;
+            const el = document.getElementById("bowelList");
+            if (!el) return;
+            const healthLabel = { good: "😊 健康", mid: "😐 一般", bad: "😟 不佳" };
+            el.innerHTML = list.map((b, i) => {
+                const parts = [];
+                if (b.amount) parts.push(`量·${b.amount}`);
+                if (b.honey === true) parts.push("用了蜂蜜露");
+                if (b.honey === false) parts.push("未用蜂蜜露");
+                if (b.healthy) parts.push(healthLabel[b.healthy] || "");
+                return `<div class="entry">💩 ${parts.join(" · ")}${b.note ? "<br>" + esc(b.note) : ""}
+       <div class="meta"><span>${b.time}</span></div>
+       <button class="del" onclick="delBowel(${i})">✕</button></div>`;
+            }).join("");
+        }
+
+        /* ==================== 孕期日记 ==================== */
+        function addPregDiary() {
+            const ta = document.getElementById("pregDiaryInput");
+            const text = ta.value.trim(); if (!text) return;
+            day().pregDiaries.push({ text, time: nowTime() });
+            ta.value = ""; save(); renderToday();
+        }
+        function delPregDiary(i) { day().pregDiaries.splice(i, 1); save(); renderToday(); }
+        function renderPregDiaries() {
+            const list = day().pregDiaries;
+            document.getElementById("pregDiaryList").innerHTML = list.map((p, i) =>
+                `<div class="entry">${esc(p.text)}<div class="meta"><span>${p.time}</span></div>
+     <button class="del" onclick="delPregDiary(${i})">✕</button></div>`).join("");
+        }
+
+        /* ==================== 自媒体运营 ==================== */
+        let mediaTag = "小红书";
+        let mediaFilter = "全部";
+        function selectMediaTag(btn) {
+            mediaTag = btn.dataset.mtag;
+            document.querySelectorAll("#mediaTagRow button").forEach(b => b.classList.toggle("ghost", b !== btn));
+        }
+        function addMedia() {
+            const ta = document.getElementById("mediaInput");
+            const text = ta.value.trim(); if (!text) return;
+            day().media.push({ text, tag: mediaTag, time: nowTime() });
+            ta.value = ""; save(); renderMedia(); renderTimeline();
+        }
+        function delMedia(d, i) { day(d).media.splice(i, 1); save(); renderMedia(); renderTimeline(); }
+        function setMediaFilter(tag) { mediaFilter = tag; renderMedia(); }
+        function renderMedia() {
+            const all = [];
+            Object.keys(store.days).sort().reverse().forEach(d => {
+                (store.days[d].media || []).forEach((m, i) => all.push({ d, i, m }));
+            });
+            const tags = ["全部", ...Array.from(new Set(all.map(x => x.m.tag)))];
+            if (!tags.includes(mediaFilter)) mediaFilter = "全部";
+            document.getElementById("mediaFilterRow").innerHTML = tags.map(t =>
+                `<button class="filter-chip ${mediaFilter === t ? "sel" : ""}" onclick="setMediaFilter('${t.replace(/'/g, "\\'")}')">${t} (${t === "全部" ? all.length : all.filter(x => x.m.tag === t).length})</button>`).join("");
+            const items = mediaFilter === "全部" ? all : all.filter(x => x.m.tag === mediaFilter);
+            document.getElementById("mediaList").innerHTML = items.length
+                ? items.map(x => `<div class="entry"><span class="tag">${x.m.tag}</span>${esc(x.m.text)}
+        <div class="meta"><span>${x.d} ${x.m.time}</span></div>
+        <button class="del" onclick="delMedia('${x.d}',${x.i})">✕</button></div>`).join("")
+                : `<div class="empty-tip">还没有运营记录，发布一条 / 整理素材就记一条吧</div>`;
+        }
+
+        /* ==================== 想法碎片 ==================== */
+        function addThought() {
+            const ta = document.getElementById("thoughtInput");
+            const text = ta.value.trim(); if (!text) return;
+            day().thoughts.push({ text, time: nowTime(), date: currentDate });
+            ta.value = ""; save(); renderThoughts(); renderTimeline();
+        }
+        function delThought(d, i) { day(d).thoughts.splice(i, 1); save(); renderThoughts(); renderTimeline(); }
+        function renderThoughts() {
+            // 展示所有日期的想法（近到远），方便回顾整理
+            const items = [];
+            Object.keys(store.days).sort().reverse().forEach(d => {
+                (store.days[d].thoughts || []).forEach((t, i) => items.push({ d, i, t }));
+            });
+            document.getElementById("thoughtList").innerHTML = items.length
+                ? items.map(x => `<div class="entry">${esc(x.t.text)}
+        <div class="meta"><span>${x.d} ${x.t.time}</span></div>
+        <button class="del" onclick="delThought('${x.d}',${x.i})">✕</button></div>`).join("")
+                : `<div class="empty-tip">还没有想法碎片，随手记一条吧</div>`;
+        }
+
+        /* ==================== 有意思的知识 ==================== */
+        function selectKType(btn) {
+            kType = btn.dataset.ktype;
+            document.querySelectorAll("#knowledgeTypeRow button").forEach(b => {
+                b.classList.toggle("ghost", b !== btn);
+            });
+        }
+        function addKnowledge() {
+            const ta = document.getElementById("knowledgeInput");
+            const text = ta.value.trim(); if (!text) return;
+            day().knowledge.push({ text, type: kType, time: nowTime() });
+            ta.value = ""; save(); renderKnowledge(); renderTimeline();
+        }
+        function delKnowledge(d, i) { day(d).knowledge.splice(i, 1); save(); renderKnowledge(); renderTimeline(); }
+        function renderKnowledge() {
+            const items = [];
+            Object.keys(store.days).sort().reverse().forEach(d => {
+                (store.days[d].knowledge || []).forEach((k, i) => items.push({ d, i, k }));
+            });
+            document.getElementById("knowledgeList").innerHTML = items.length
+                ? items.map(x => `<div class="entry"><span class="tag">${x.k.type}</span>${esc(x.k.text)}
+        <div class="meta"><span>${x.d} ${x.k.time}</span></div>
+        <button class="del" onclick="delKnowledge('${x.d}',${x.i})">✕</button></div>`).join("")
+                : `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`;
+        }
+
+        /* ==================== 语音转文字 ==================== */
+        let recognition = null, recTarget = null, recBtn = null, recBaseText = "";
+        function toggleMic(targetId, btnId) {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) { alert("当前浏览器不支持语音识别，请使用 Chrome 或 Edge 浏览器。"); return; }
+            if (recognition) { recognition.stop(); return; }
+            recTarget = document.getElementById(targetId);
+            recBtn = document.getElementById(btnId);
+            recBaseText = recTarget.value;
+            recognition = new SR();
+            recognition.lang = "zh-CN";
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.onresult = e => {
+                let finalText = "", interim = "";
+                for (let i = 0; i < e.results.length; i++) {
+                    if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+                    else interim += e.results[i][0].transcript;
+                }
+                recTarget.value = recBaseText + finalText + interim;
+            };
+            recognition.onerror = e => {
+                if (e.error === "not-allowed") alert("请允许浏览器使用麦克风权限。");
+                stopMic();
+            };
+            recognition.onend = stopMic;
+            recognition.start();
+            recBtn.classList.add("recording");
+            recBtn.textContent = "⏹";
+        }
+        function stopMic() {
+            if (recBtn) { recBtn.classList.remove("recording"); recBtn.textContent = "🎙"; }
+            recognition = null; recTarget = null; recBtn = null;
+        }
+
+        /* ==================== 日历 ==================== */
+        function shiftMonth(n) {
+            calMonth += n;
+            if (calMonth < 0) { calMonth = 11; calYear--; }
+            if (calMonth > 11) { calMonth = 0; calYear++; }
+            renderCalendar();
+        }
+        function renderCalendar() {
+            document.getElementById("calTitle").textContent = `${calYear} 年 ${calMonth + 1} 月`;
+            const first = new Date(calYear, calMonth, 1);
+            const startDow = first.getDay(); // 0=Sun
+            const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+            const today = todayStr();
+            let html = ["日", "一", "二", "三", "四", "五", "六"].map(d => `<div class="dow">${d}</div>`).join("");
+            for (let i = 0; i < startDow; i++) html += `<div class="cal-cell other"></div>`;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const ds = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                let dot = "";
+                if (store.days[ds]) {
+                    const n = habitDoneCount(ds);
+                    const p = n === 0 ? 0 : n <= 3 ? 1 : n < HABITS.length ? 2 : 3;
+                    if (n > 0) dot = `<div class="cal-dot p${p}"></div>`;
+                    else dot = `<div class="cal-dot"></div>`;
+                }
+                html += `<div class="cal-cell ${ds === today ? "today" : ""} ${ds === currentDate ? "selected" : ""}" onclick="calPick('${ds}')">${d}${dot}</div>`;
+            }
+            document.getElementById("calGrid").innerHTML = html;
+        }
+        function calPick(ds) {
+            setDate(ds);
+            document.querySelector('nav.tabs button[data-tab="today"]').click();
+        }
+
+        /* ==================== 统计 ==================== */
+        function renderStats() {
+            const today = todayStr();
+            // 汇总
+            const allDates = Object.keys(store.days).filter(d => habitDoneCount(d) > 0).sort();
+            const totalDays = allDates.length;
+            // 全部完成的连续天数（截至今天）
+            let allDoneStreak = 0;
+            for (let i = 0; ; i++) {
+                const d = offsetDate(today, -i);
+                const n = habitDoneCount(d);
+                if (n === HABITS.length) allDoneStreak++;
+                else { if (i === 0 && n > 0) continue; break; } // 今天没做完不打断昨天起的记录
+            }
+            // 近7天平均完成数
+            let sum7 = 0;
+            for (let i = 0; i < 7; i++) sum7 += habitDoneCount(offsetDate(today, -i));
+            document.getElementById("statSummary").innerHTML = `
+    <div class="stat-box"><div class="num">${totalDays}</div><div class="lbl">累计打卡天数</div></div>
+    <div class="stat-box"><div class="num">${allDoneStreak}</div><div class="lbl">全勤连续天数</div></div>
+    <div class="stat-box"><div class="num">${(sum7 / 7).toFixed(1)}</div><div class="lbl">近7天日均完成项</div></div>`;
+            // 每习惯
+            document.getElementById("statTable").innerHTML = HABITS.map(h => {
+                let streak = 0;
+                for (let i = 0; ; i++) {
+                    const d = offsetDate(today, -i);
+                    if (isHabitDone(h.id, d)) streak++;
+                    else { if (i === 0) continue; break; }
+                }
+                let done30 = 0;
+                for (let i = 0; i < 30; i++) if (isHabitDone(h.id, offsetDate(today, -i))) done30++;
+                const rate = Math.round(done30 / 30 * 100);
+                return `<tr><td>${h.icon} ${h.name}</td><td>${streak} 天</td>
+      <td><span class="rate-bar"><i style="width:${rate}%"></i></span>${rate}%</td></tr>`;
+            }).join("");
+        }
+        function offsetDate(base, n) {
+            const d = new Date(base + "T12:00:00");
+            d.setDate(d.getDate() + n);
+            return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        }
+        function renderHistory() { renderCalendar(); renderStats(); }
+
+        /* ==================== 导出 / 导入 ==================== */
+        function download(filename, content, mime) {
+            const blob = new Blob([content], { type: mime });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+        function exportJSON() {
+            download(`打卡数据备份_${todayStr()}.json`, JSON.stringify(store, null, 2), "application/json");
+        }
+        function exportCSV() {
+            const ratingLabel = { good: "控糖良好", mid: "一般", bad: "超标" };
+            const head = ["日期", ...HABITS.map(h => h.name), "英语微任务", "英语知识点", "饮水(ml)",
+                ...MEALS.flatMap(m => [m.name, m.name + "控糖评估"]),
+                "加餐", "锰炼", "排便", "临时任务", "复盘", "感恩", "孕期日记", "运营", "想法碎片", "知识收藏"];
+            const rows = [head];
+            Object.keys(store.days).sort().forEach(d => {
+                const o = day(d);
+                const bowelLabel = { good: "健康", mid: "一般", bad: "不佳" };
+                rows.push([
+                    d,
+                    ...HABITS.map(h => isHabitDone(h.id, d) ? "✓" : ""),
+                    ENG_TASKS.filter(t => isEngTaskDone(t.id, d)).map(t => t.name).join(" | "),
+                    o.english.phrases.map(p => p.text).join(" | "),
+                    waterTotal(d),
+                    ...MEALS.flatMap(m => { const r = o.meals[m.id] || {}; return [r.food || "", ratingLabel[r.rating] || ""]; }),
+                    o.snacks.map(s => s.food + (s.rating ? "(" + (ratingLabel[s.rating] || "") + ")" : "")).join(" | "),
+                    o.exercises.map(x => x.text).join(" | "),
+                    o.bowels.map(b => [b.amount ? "量·" + b.amount : "", b.honey === true ? "用蜂蜜露" : b.honey === false ? "未用蜂蜜露" : "", bowelLabel[b.healthy] || "", b.note].filter(Boolean).join(" ")).join(" | "),
+                    o.tasks.map(t => (t.done ? "✓ " : "○ ") + t.text).join(" | "),
+                    o.reviews.map(r => r.text).join(" | "),
+                    o.gratitude.map(g => g.text).join(" | "),
+                    o.pregDiaries.map(p => p.text).join(" | "),
+                    o.media.map(m => `[${m.tag}] ${m.text}`).join(" | "),
+                    o.thoughts.map(t => t.text).join(" | "),
+                    o.knowledge.map(k => `[${k.type}] ${k.text}`).join(" | "),
+                ]);
+            });
+            const csv = "\uFEFF" + rows.map(r => r.map(c =>
+                `"${String(c).replace(/"/g, '""').replace(/\r?\n/g, " ")}"`).join(",")).join("\r\n");
+            download(`打卡数据_${todayStr()}.csv`, csv, "text/csv;charset=utf-8");
+        }
+        function importJSON(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(reader.result);
+                    if (!data.days) throw new Error("格式不正确");
+                    if (!confirm(`将导入 ${Object.keys(data.days).length} 天的数据，与现有数据按日期合并（同日期以导入数据为准）。继续？`)) return;
+                    Object.assign(store.days, data.days);
+                    if (data.settings && data.settings.supplements) store.settings.supplements = data.settings.supplements;
+                    save(); renderAll();
+                    alert("导入成功！");
+                } catch (e) { alert("导入失败：" + e.message); }
+            };
+            reader.readAsText(file);
+            input.value = "";
+        }
+        function clearAll() {
+            if (!confirm("确定清空全部数据？此操作不可恢复！")) return;
+            if (!confirm("再次确认：真的要清空吗？建议先导出 JSON 备份。")) return;
+            localStorage.removeItem(STORE_KEY);
+            store = loadStore();
+            renderAll();
+        }
+
+        /* ==================== 渲染入口 ==================== */
+        function renderToday() {
+            renderHabits(); renderEnglish(); renderTasks(); renderWater(); renderSupps(); renderTimeline(); renderReviews(); renderGratitude(); renderSummary(); renderMeals();
+            renderSnacks(); renderExercises(); renderBowelForm(); renderBowel(); renderPregDiaries();
+        }
+        function renderAll() {
+            renderToday(); renderThoughts(); renderKnowledge(); renderMedia();
+            if (document.getElementById("page-history").classList.contains("active")) renderHistory();
+        }
+
+        /* ==================== 初始化 ==================== */
+        (function init() {
+            const now = new Date();
+            calYear = now.getFullYear(); calMonth = now.getMonth();
+            document.getElementById("datePicker").value = currentDate;
+            selectKType(document.querySelector('#knowledgeTypeRow button[data-ktype="播客"]'));
+            selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
+            renderAll();
+            if (location.protocol.startsWith("http") && "serviceWorker" in navigator)
+                navigator.serviceWorker.register("sw.js").catch(() => { });
+        })();
+    </script>
+</body>
+
+</html>
