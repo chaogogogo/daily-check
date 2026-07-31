@@ -94,7 +94,7 @@ function day(d) {
     o.knowledge = o.knowledge || [];   // [{text,type,time}]
     o.tasks = o.tasks || [];   // [{text,done,time}]
     o.weight = o.weight || null;   // {value,time}
-    o.sleep = o.sleep || null;   // {quality:"good"|"bad",time}
+    o.sleep = o.sleep || null;   // {quality:"good"|"mid"|"bad",time}
     o.symptoms = o.symptoms || [];   // [{tag,time}]
     o.techLogs = o.techLogs || [];   // [{text,time}]
     o.english = o.english || { tasks: {} }; // tasks: {id:{count,time}}
@@ -373,7 +373,10 @@ function collectTimeline(d) {
     o.bowels.forEach(b => { const extra = [b.amount ? "量·" + b.amount : "", b.honey === true ? "蜂蜜露" : ""].filter(Boolean).join(" "); ev.push({ time: b.time, label: `💩 排便${extra ? "（" + extra + "）" : ""}` }); });
     o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${trunc(p.text, 18)}` }); });
     if (o.weight && o.weight.time) ev.push({ time: o.weight.time, label: `⚖️ 体重 ${o.weight.value} kg` });
-    if (o.sleep && o.sleep.time) ev.push({ time: o.sleep.time, label: `😴 睡眠：${o.sleep.quality === "good" ? "好 😊" : "差 😵"}` });
+    if (o.sleep && o.sleep.time) {
+        const sLabel = { good: "好 😊", mid: "一般 😐", bad: "差 😵" };
+        ev.push({ time: o.sleep.time, label: `😴 睡眠：${sLabel[o.sleep.quality] || "一般 😐"}` });
+    }
     o.symptoms.forEach(s => ev.push({ time: s.time, label: `🤕 孕期反应：${s.tag}` }));
     o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${trunc(t.text, 18)}` }));
     o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}` }));
@@ -624,9 +627,11 @@ function setSleep(quality) {
 function renderSleep() {
     const o = day();
     const q = o.sleep ? o.sleep.quality : "";
+    if (q && !["good", "mid", "bad"].includes(q)) o.sleep.quality = "mid";
     document.getElementById("sleepRow").innerHTML =
         `<button class="${q === "good" ? "sel" : ""}" onclick="setSleep('good')">😊 好</button>
-     <button class="${q === "bad" ? "sel" : ""}" onclick="setSleep('bad')">😵 坏</button>
+     <button class="${q === "mid" ? "sel" : ""}" onclick="setSleep('mid')">😐 一般</button>
+     <button class="${q === "bad" ? "sel" : ""}" onclick="setSleep('bad')">😵 差</button>
      ${o.sleep ? `<span style="font-size:11px;color:var(--text-light)">${o.sleep.time}</span>` : ""}`;
 }
 function toggleSymptom(tag) {
@@ -968,7 +973,9 @@ function buildWeeklyText() {
     if (rGood + rMid + rBad) lines.push(`🍬 控糖：良好 ${rGood} 餐 · 一般 ${rMid} 餐 · 超标 ${rBad} 餐`);
     // 睡眠 / 排便 / 反应
     const sleeps = days.map(d => store.days[d] && store.days[d].sleep ? store.days[d].sleep.quality : null).filter(Boolean);
-    if (sleeps.length) lines.push(`😴 睡眠：好 ${sleeps.filter(s => s === "good").length} 晚 · 坏 ${sleeps.filter(s => s === "bad").length} 晚`);
+    if (sleeps.length) {
+        lines.push(`😴 睡眠：好 ${sleeps.filter(s => s === "good").length} 晚 · 一般 ${sleeps.filter(s => s === "mid").length} 晚 · 差 ${sleeps.filter(s => s === "bad").length} 晚`);
+    }
     const hLabel = { good: "健康", mid: "一般", bad: "不佳" };
     const bowels = [];
     days.forEach(d => (store.days[d] && store.days[d].bowels || []).forEach(b => bowels.push(b)));
@@ -1027,7 +1034,9 @@ function renderWeekly() {
     // 睡眠
     html += row("😴 睡眠", days.map(d => {
         const s = store.days[d] && store.days[d].sleep;
-        return cell(s ? (s.quality === "good" ? DONE : BAD) : NONE, `${d} 睡眠${s ? (s.quality === "good" ? "：好" : "：坏") : "：无记录"}`);
+        const cmap = { good: DONE, mid: MID, bad: BAD };
+        const slabel = { good: "好", mid: "一般", bad: "差" };
+        return cell(s ? (cmap[s.quality] || MID) : NONE, `${d} 睡眠${s ? "：" + (slabel[s.quality] || "一般") : "：无记录"}`);
     }));
     // 排便健康（取最差）
     html += row("💩 排便", days.map(d => {
@@ -1095,7 +1104,7 @@ function exportCSV() {
             o.exercises.map(x => x.text).join(" | "),
             o.bowels.map(b => [b.amount ? "量·" + b.amount : "", b.honey === true ? "用蜂蜜露" : b.honey === false ? "未用蜂蜜露" : "", bowelLabel[b.healthy] || "", b.note].filter(Boolean).join(" ")).join(" | "),
             o.weight ? o.weight.value : "",
-            o.sleep ? (o.sleep.quality === "good" ? "好" : "坏") : "",
+                    o.sleep ? ({ good: "好", mid: "一般", bad: "差" }[o.sleep.quality] || "一般") : "",
             o.symptoms.map(s => s.tag).join(" | "),
             o.techLogs.map(t => t.text).join(" | "),
             o.tasks.map(t => (t.done ? "✓ " : "○ ") + t.text).join(" | "),
