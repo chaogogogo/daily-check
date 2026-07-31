@@ -4,10 +4,18 @@
     "start_url": "./daily-checkin.html",
     "scope": "./",
     "display": "standalone",
-    "background_color": "#fdf7ef",
-    "theme_color": "#f0912e",
+    "background_color": "#faf3e6",
+    "theme_color": "#c66a3d",
     "icons": [
-        { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
-        { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+        {
+            "src": "icon-180.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        },
+        {
+            "src": "icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
     ]
 }
