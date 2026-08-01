@@ -1415,6 +1415,43 @@ window.addEventListener("focus", checkDayRollover);
     renderThoughtTagRow();
     renderAll();
     ensurePersistentStorage();
-    if (location.protocol.startsWith("http") && "serviceWorker" in navigator)
-        navigator.serviceWorker.register("sw.js").catch(() => { });
+    registerServiceWorker();
 })();
+
+/* ==================== 版本更新（部署后自动检测并提示刷新） ==================== */
+let swRefreshing = false;
+let waitingWorker = null;
+function applyUpdate() {
+    const bar = document.getElementById("updateBar");
+    if (bar) bar.style.display = "none";
+    if (waitingWorker) waitingWorker.postMessage("skipWaiting");
+    else location.reload();
+}
+function registerServiceWorker() {
+    if (!(location.protocol.startsWith("http") && "serviceWorker" in navigator)) return;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (swRefreshing) return;
+        swRefreshing = true;
+        location.reload();
+    });
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
+        const notify = w => {
+            // 仅当已有旧版本在运行时提示（首次安装不打扰）
+            if (w && navigator.serviceWorker.controller) {
+                waitingWorker = w;
+                const bar = document.getElementById("updateBar");
+                if (bar) bar.style.display = "flex";
+            }
+        };
+        if (reg.waiting) notify(reg.waiting);
+        reg.addEventListener("updatefound", () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener("statechange", () => { if (nw.state === "installed") notify(nw); });
+        });
+        // 重新聚焦 App 时主动检查更新
+        const check = () => reg.update().catch(() => { });
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+        window.addEventListener("focus", check);
+    }).catch(() => { });
+}
