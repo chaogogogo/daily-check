@@ -33,6 +33,7 @@
         <button data-tab="tech">技术</button>
         <button data-tab="pregnancy">健康</button>
         <button data-tab="thoughts">灵感</button>
+        <button data-tab="wealth">丰盛</button>
         <button data-tab="history">历史</button>
         <button data-tab="data">数据</button>
     </nav>
@@ -255,6 +256,36 @@
             </div>
         </div>
 
+        <!-- ============ 丰盛 ============ -->
+        <div class="tab-page" id="page-wealth">
+            <div class="card">
+                <h2>💸 今日开支 <span class="badge" id="expenseTodayBadge">¥0</span></h2>
+                <div class="chip-row" id="expenseCatRow"></div>
+                <div class="money-row">
+                    <input type="number" id="expenseAmount" inputmode="decimal" step="0.01" min="0" placeholder="金额 ¥">
+                    <input type="text" id="expenseNote" placeholder="备注（可选）">
+                </div>
+                <div class="btn-row"><button class="btn" onclick="addExpense()">记一笔</button></div>
+                <div class="entry-list" id="expenseList"></div>
+            </div>
+            <div class="card">
+                <h2>🧊 想买清单 <span class="badge">冷静几天再决定</span></h2>
+                <p class="ai-hint">想买东西时先记在这里，过几天再回来看 —— 还想要就买，不想要就是省下的钱 💪</p>
+                <div class="money-row">
+                    <input type="text" id="wishItem" placeholder="想买什么">
+                    <input type="number" id="wishAmount" inputmode="decimal" step="0.01" min="0" placeholder="预估 ¥">
+                </div>
+                <textarea id="wishReason" rows="2" placeholder="为什么想买？真的需要吗？（写下来更容易冷静）"></textarea>
+                <div class="btn-row"><button class="btn" onclick="addWish()">加入冷静清单</button></div>
+                <div style="display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap" id="wishFilterRow"></div>
+                <div class="entry-list" id="wishList"></div>
+            </div>
+            <div class="card">
+                <h2>📊 丰盛汇总 <span class="badge">本月</span></h2>
+                <div id="wealthSummary"></div>
+            </div>
+        </div>
+
         <!-- ============ 历史 ============ -->
         <div class="tab-page" id="page-history">
             <div class="card">
@@ -273,6 +304,7 @@
                     <button class="btn ghost small" onclick="copyWeekly()">📋 复制汇总（可喂给 AI 分析）</button>
                     <span class="saved-tip" id="weeklyCopied"></span>
                 </div>
+                <p class="ai-hint">💡 复制内容已自动附带一句 AI 分析引导语，直接粘贴给 ChatGPT / 豆包 等即可让它分析「喝水·饮食·运动」与「排便·睡眠·反应」的关联。</p>
             </div>
             <div class="card">
                 <h2>📅 日历视图 <span class="badge">点击日期查看/补录</span></h2>
@@ -301,11 +333,14 @@
                 <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">
                     所有数据仅保存在本机浏览器（localStorage）中，不会上传。建议定期导出 JSON 备份。
                 </p>
+                <div id="storageStatus" class="storage-status"></div>
                 <div class="data-btns">
                     <button onclick="exportJSON()">📦 导出 JSON（完整备份 / AI 分析）
                         <span class="desc">包含全部原始数据，可重新导入恢复，也适合喂给 AI 做分析</span></button>
                     <button onclick="exportCSV()">📊 导出 CSV（表格查看）
                         <span class="desc">每日一行的打卡汇总，可用 Excel / Numbers 打开</span></button>
+                    <button onclick="exportWishesCSV()">🧊 导出想买清单 CSV
+                        <span class="desc">独立一张表：物品 / 金额 / 状态 / 理由 / 加入与决定日期</span></button>
                     <label>📥 导入 JSON 备份
                         <span class="desc">从之前导出的 JSON 文件恢复数据（会与现有数据按日期合并）</span>
                         <input type="file" accept=".json" style="display:none" onchange="importJSON(this)">

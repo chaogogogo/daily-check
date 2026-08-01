@@ -460,6 +460,32 @@ input[type=number]:focus {
     color: var(--accent);
 }
 
+.ai-hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-light);
+}
+
+.storage-status {
+    display: none;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+}
+
+.storage-status.ok {
+    background: #e3efe7;
+    color: #4c8163;
+}
+
+.storage-status.warn {
+    background: #f6e9dc;
+    color: #b0763c;
+}
+
 /* 列表条目（感恩/想法/知识） */
 .entry-list {
     margin-top: 12px;
@@ -1193,4 +1219,112 @@ nav.tabs button.need-backup::after {
 
 .week-grid.dense .week-label {
     font-size: 11px;
+}
+
+/* 丰盛（开支 / 冷静购物） */
+.chip-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.money-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.money-row #expenseAmount,
+.money-row #wishAmount {
+    max-width: 130px;
+    flex: 0 0 auto;
+}
+
+.wish-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.wish-reason {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+.entry .tag.tag-good {
+    background: #e3efe7;
+    color: #4c8163;
+}
+
+.entry .tag.tag-bad {
+    background: #f6e0dc;
+    color: #b0503c;
+}
+
+.wealth-stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.wealth-stat {
+    flex: 1;
+    background: #faf6f1;
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+}
+
+.ws-num {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.ws-label {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+}
+
+.cat-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cat-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.cat-bar-label {
+    flex: 0 0 64px;
+    color: var(--text);
+}
+
+.cat-bar {
+    flex: 1;
+    height: 10px;
+    background: var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.cat-bar-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 5px;
+}
+
+.cat-bar-val {
+    flex: 0 0 auto;
+    color: var(--text-light);
+    min-width: 56px;
+    text-align: right;
 }

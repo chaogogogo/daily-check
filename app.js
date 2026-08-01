@@ -29,6 +29,19 @@ const BOWEL_HEALTH = [
     { id: "mid", label: "😐 一般", cls: "sel-mid" },
     { id: "bad", label: "😟 不佳", cls: "sel-bad" },
 ];
+const EXPENSE_CATS = [
+    { id: "餐饮", icon: "🍜" },
+    { id: "日用", icon: "🧺" },
+    { id: "母婴", icon: "👶" },
+    { id: "家庭", icon: "🏠" },
+    { id: "交通", icon: "🚕" },
+    { id: "医疗", icon: "💊" },
+    { id: "购物", icon: "🛍" },
+    { id: "娱乐", icon: "🎬" },
+    { id: "学习", icon: "📚" },
+    { id: "人情", icon: "🎁" },
+    { id: "其他", icon: "✨" },
+];
 /* 任一微任务完成即算「英语提升」当日打卡 */
 const ENG_TASKS = [
     { id: "video", icon: "📺", name: "看 1 条英文技术视频", desc: "想刷手机时的替代动作 · 5-10 分钟，程序员的「短视频」", link: "https://www.youtube.com/@Fireship/videos", linkName: "Fireship ▶" },
@@ -79,6 +92,8 @@ function day(d) {
     o.snacks = o.snacks || [];   // [{food,rating,time}]
     o.exercises = o.exercises || [];   // [{text,time}]
     o.bowels = o.bowels || [];   // [{honey,amount,healthy,note,time}]
+    o.expenses = o.expenses || [];   // [{amount,cat,note,time}]
+    o.wishes = o.wishes || [];   // [{item,amount,reason,status:"cooling"|"resisted"|"bought",time,date,decidedAt}]
     // 迁移旧版固定加餐
     if (o.meals.snack && (o.meals.snack.food || o.meals.snack.rating)) {
         o.snacks.push({ food: o.meals.snack.food || "", rating: o.meals.snack.rating || "", time: o.meals.snack.time || "" });
@@ -382,6 +397,8 @@ function collectTimeline(d) {
     o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}` }));
     o.thoughts.forEach(t => ev.push({ time: t.time, label: `💭 想法${t.tag ? "[" + t.tag + "]" : ""}：${trunc(t.text, 18)}` }));
     o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}` }));
+    o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "·" + trunc(e.note, 10) : ""}` }));
+    o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${trunc(w.item, 14)}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}` }); });
     ev.sort((a, b) => a.time.localeCompare(b.time));
     return ev;
 }
@@ -792,6 +809,99 @@ function renderKnowledge() {
         : `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`;
 }
 
+/* ==================== 丰盛（开支 / 冷静购物） ==================== */
+let expenseCat = EXPENSE_CATS[0].id;
+let wishFilter = "全部";
+function fmtMoney(n) { n = Math.round((Number(n) || 0) * 100) / 100; return n % 1 === 0 ? String(n) : n.toFixed(2); }
+function catIcon(id) { const c = EXPENSE_CATS.find(x => x.id === id); return c ? c.icon : "✨"; }
+function expenseTotal(d) { return day(d).expenses.reduce((s, e) => s + (e.amount || 0), 0); }
+function selectExpenseCat(id) { expenseCat = id; renderExpenseCatRow(); }
+function renderExpenseCatRow() {
+    document.getElementById("expenseCatRow").innerHTML = EXPENSE_CATS.map(c =>
+        `<button class="filter-chip ${expenseCat === c.id ? "sel" : ""}" onclick="selectExpenseCat('${c.id}')">${c.icon} ${c.id}</button>`).join("");
+}
+function addExpense() {
+    const amtEl = document.getElementById("expenseAmount");
+    const amt = parseFloat(amtEl.value);
+    if (!(amt > 0)) { alert("请输入正确的金额"); return; }
+    const note = document.getElementById("expenseNote").value.trim();
+    day().expenses.push({ amount: Math.round(amt * 100) / 100, cat: expenseCat, note, time: nowTime() });
+    amtEl.value = ""; document.getElementById("expenseNote").value = "";
+    save(); renderWealth(); renderTimeline();
+}
+function delExpense(i) { day().expenses.splice(i, 1); save(); renderWealth(); renderTimeline(); }
+function renderExpenses() {
+    const list = day().expenses;
+    document.getElementById("expenseTodayBadge").textContent = "¥" + fmtMoney(expenseTotal(currentDate));
+    document.getElementById("expenseList").innerHTML = list.length
+        ? list.map((e, i) => `<div class="entry"><span class="tag">${catIcon(e.cat)} ${e.cat}</span><b>¥${fmtMoney(e.amount)}</b>${e.note ? " · " + esc(e.note) : ""}
+<div class="meta"><span>${e.time}</span></div>
+<button class="del" onclick="delExpense(${i})">✕</button></div>`).join("")
+        : `<div class="empty-tip">今天还没有记账，点上方分类记一笔吧</div>`;
+}
+function addWish() {
+    const itemEl = document.getElementById("wishItem");
+    const item = itemEl.value.trim(); if (!item) { alert("请填写想买的东西"); return; }
+    const amt = parseFloat(document.getElementById("wishAmount").value);
+    const reason = document.getElementById("wishReason").value.trim();
+    day().wishes.push({ item, amount: amt > 0 ? Math.round(amt * 100) / 100 : 0, reason, status: "cooling", time: nowTime(), date: currentDate });
+    itemEl.value = ""; document.getElementById("wishAmount").value = ""; document.getElementById("wishReason").value = "";
+    save(); renderWealth();
+}
+function setWishStatus(d, i, status) {
+    const w = day(d).wishes[i]; if (!w) return;
+    w.status = status; w.decidedAt = todayStr();
+    save(); renderWealth();
+}
+function delWish(d, i) { day(d).wishes.splice(i, 1); save(); renderWealth(); }
+function setWishFilter(f) { wishFilter = f; renderWishes(); }
+function renderWishes() {
+    const all = [];
+    Object.keys(store.days).sort().reverse().forEach(d => (store.days[d].wishes || []).forEach((w, i) => all.push({ d, i, w })));
+    const statusLabel = { cooling: "冷静中", resisted: "忍住了", bought: "已购买" };
+    const filters = ["全部", "冷静中", "忍住了", "已购买"];
+    document.getElementById("wishFilterRow").innerHTML = filters.map(f =>
+        `<button class="filter-chip ${wishFilter === f ? "sel" : ""}" onclick="setWishFilter('${f}')">${f} (${f === "全部" ? all.length : all.filter(x => statusLabel[x.w.status] === f).length})</button>`).join("");
+    const items = wishFilter === "全部" ? all : all.filter(x => statusLabel[x.w.status] === wishFilter);
+    document.getElementById("wishList").innerHTML = items.length
+        ? items.map(x => {
+            const w = x.w;
+            const coolDays = Math.round((new Date(todayStr()) - new Date(w.date || x.d)) / 86400000);
+            let head, actions = "";
+            if (w.status === "resisted") head = `<span class="tag tag-good">✋ 忍住 · 省 ¥${fmtMoney(w.amount)}</span>`;
+            else if (w.status === "bought") head = `<span class="tag tag-bad">🛒 已购买${w.amount ? " ¥" + fmtMoney(w.amount) : ""}</span>`;
+            else {
+                head = `<span class="tag">🧊 冷静 ${coolDays} 天</span>`;
+                actions = `<div class="wish-actions"><button class="btn small" onclick="setWishStatus('${x.d}',${x.i},'resisted')">✋ 忍住了</button><button class="btn small ghost" onclick="setWishStatus('${x.d}',${x.i},'bought')">🛒 还是买了</button></div>`;
+            }
+            return `<div class="entry">${head} <b>${esc(w.item)}</b>${w.amount ? " · ¥" + fmtMoney(w.amount) : ""}${w.reason ? `<div class="wish-reason">${esc(w.reason)}</div>` : ""}
+<div class="meta"><span>${x.d} ${w.time}</span></div>${actions}
+<button class="del" onclick="delWish('${x.d}',${x.i})">✕</button></div>`;
+        }).join("")
+        : `<div class="empty-tip">还没有想买清单，冲动消费前先加进来冷静一下 🧊</div>`;
+}
+function renderWealthSummary() {
+    const ym = todayStr().slice(0, 7);
+    let total = 0; const byCat = {};
+    Object.keys(store.days).filter(d => d.startsWith(ym)).forEach(d =>
+        (store.days[d].expenses || []).forEach(e => { total += e.amount || 0; byCat[e.cat] = (byCat[e.cat] || 0) + (e.amount || 0); }));
+    const wishesAll = [];
+    Object.keys(store.days).forEach(d => (store.days[d].wishes || []).forEach(w => wishesAll.push(w)));
+    const cooling = wishesAll.filter(w => w.status === "cooling").length;
+    const saved = wishesAll.filter(w => w.status === "resisted").reduce((s, w) => s + (w.amount || 0), 0);
+    const stat = (num, label) => `<div class="wealth-stat"><div class="ws-num">${num}</div><div class="ws-label">${label}</div></div>`;
+    const stats = `<div class="wealth-stats">${stat("¥" + fmtMoney(total), "本月支出")}${stat("¥" + fmtMoney(saved), "忍住省下")}${stat(cooling, "冷静中")}</div>`;
+    const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+    const bd = cats.length
+        ? `<div class="cat-breakdown">` + cats.map(([c, v]) => {
+            const pct = total ? Math.round(v / total * 100) : 0;
+            return `<div class="cat-bar-row"><span class="cat-bar-label">${catIcon(c)} ${c}</span><div class="cat-bar"><div class="cat-bar-fill" style="width:${pct}%"></div></div><span class="cat-bar-val">¥${fmtMoney(v)}</span></div>`;
+        }).join("") + `</div>`
+        : `<div class="empty-tip">本月还没有支出记录</div>`;
+    document.getElementById("wealthSummary").innerHTML = stats + bd;
+}
+function renderWealth() { renderExpenseCatRow(); renderExpenses(); renderWishes(); renderWealthSummary(); }
+
 /* ==================== 语音转文字 ==================== */
 let recognition = null, recTarget = null, recBtn = null, recBaseText = "";
 function toggleMic(targetId, btnId) {
@@ -922,6 +1032,8 @@ function collectSearchItems() {
         (o.exercises || []).forEach(x => items.push({ d, time: x.time, type: "锻炼", text: x.text }));
         if (o.english && o.english.phrases) o.english.phrases.forEach(x => items.push({ d, time: x.time, type: "英语知识点", text: x.text }));
         (o.tasks || []).forEach(x => items.push({ d, time: x.time, type: "任务", text: x.text }));
+        (o.expenses || []).forEach(x => items.push({ d, time: x.time, type: "开支·" + x.cat, text: (x.note || "") + " ¥" + x.amount }));
+        (o.wishes || []).forEach(x => items.push({ d, time: x.time, type: "想买", text: x.item + (x.reason ? " — " + x.reason : "") }));
     });
     return items;
 }
@@ -951,10 +1063,40 @@ function weekData() {
     for (let i = weeklyRange - 1; i >= 0; i--) days.push(offsetDate(today, -i));
     return days;
 }
+function healthDetailLine(d) {
+    const o = store.days[d]; if (!o) return "";
+    const worst = hs => hs.includes("bad") ? "bad" : hs.includes("mid") ? "mid" : hs.includes("good") ? "good" : "";
+    const gradeLabel = { good: "良好", mid: "一般", bad: "超标" };
+    const sleepLabel = { good: "好", mid: "一般", bad: "差" };
+    const hLabel = { good: "健康", mid: "一般", bad: "不佳" };
+    const water = waterTotal(d);
+    const meals = Object.values(o.meals || {}).concat(o.snacks || []);
+    const rate = worst(meals.map(m => m.rating).filter(Boolean));
+    const exN = (o.exercises || []).length;
+    const sleep = o.sleep ? sleepLabel[o.sleep.quality] || "一般" : "-";
+    const bw = o.bowels || [];
+    const bwHealth = worst(bw.map(b => b.healthy).filter(Boolean));
+    const parts = [
+        `💧${water || 0}ml`,
+        `🍬${rate ? gradeLabel[rate] : "-"}`,
+        `🏃${exN}次`,
+        `😴${sleep}`,
+        `💩${bw.length ? bw.length + "次" + (bwHealth ? "/" + hLabel[bwHealth] : "") : "无"}`,
+    ];
+    if (o.weight && o.weight.value != null) parts.push(`⚖️${o.weight.value}kg`);
+    const symN = (o.symptoms || []).length;
+    if (symN) parts.push(`🤕${symN}项`);
+    return parts.join(" ");
+}
 function buildWeeklyText() {
     const days = weekData();
     const n = days.length;
-    const lines = [`📋 汇总 ${days[0]} ～ ${days[n - 1]}（近 ${n} 天）`];
+    const lines = [
+        "【请帮我分析这份健康打卡数据】",
+        "重点关注「喝水 / 饮食(控糖) / 运动」与「排便、睡眠、孕期反应」之间的关联规律，指出问题并给出具体、可执行的改善建议。",
+        "",
+        `📋 汇总 ${days[0]} ～ ${days[n - 1]}（近 ${n} 天）`
+    ];
     const ratingLabel = { good: "控糖良好", mid: "一般", bad: "超标" };
     // 打卡
     const counts = days.map(d => habitDoneCount(d));
@@ -971,6 +1113,10 @@ function buildWeeklyText() {
         });
     });
     if (rGood + rMid + rBad) lines.push(`🍬 控糖：良好 ${rGood} 餐 · 一般 ${rMid} 餐 · 超标 ${rBad} 餐`);
+    // 喝水
+    const waters = days.map(d => waterTotal(d));
+    const waterDays = waters.filter(v => v > 0);
+    if (waterDays.length) lines.push(`💧 喝水：日均 ${Math.round(waterDays.reduce((a, b) => a + b, 0) / waterDays.length)}ml · 达标(≥2000ml) ${waters.filter(v => v >= 2000).length}/${n} 天`);
     // 睡眠 / 排便 / 反应
     const sleeps = days.map(d => store.days[d] && store.days[d].sleep ? store.days[d].sleep.quality : null).filter(Boolean);
     if (sleeps.length) {
@@ -983,6 +1129,27 @@ function buildWeeklyText() {
     const sympCount = {};
     days.forEach(d => (store.days[d] && store.days[d].symptoms || []).forEach(s => sympCount[s.tag] = (sympCount[s.tag] || 0) + 1));
     if (Object.keys(sympCount).length) lines.push(`🤕 孕期反应：${Object.entries(sympCount).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t}×${n}`).join(" · ")}`);
+    // 每日健康明细（按天对齐，便于 AI 关联分析：喝水/控糖/运动/睡眠/排便/反应）
+    const detail = days.map(d => { const line = healthDetailLine(d); return line ? `${d.slice(5)}｜${line}` : null; }).filter(Boolean);
+    if (detail.length) { lines.push("", "📊 每日健康明细（喝水/控糖/运动/睡眠/排便/体重）："); detail.forEach(x => lines.push(x)); }
+    // 丰盛（开支 / 冷静购物）
+    let expTotal = 0; const catSum = {};
+    days.forEach(d => (store.days[d] && store.days[d].expenses || []).forEach(e => { expTotal += e.amount || 0; catSum[e.cat] = (catSum[e.cat] || 0) + (e.amount || 0); }));
+    if (expTotal > 0) {
+        const catStr = Object.entries(catSum).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c} ¥${fmtMoney(v)}`).join(" · ");
+        lines.push("", `💸 支出：共 ¥${fmtMoney(expTotal)}（日均 ¥${fmtMoney(expTotal / n)}）`, `　分类：${catStr}`);
+    }
+    const wishesW = [];
+    days.forEach(d => (store.days[d] && store.days[d].wishes || []).forEach(w => wishesW.push({ d, w })));
+    if (wishesW.length) {
+        const resisted = wishesW.filter(x => x.w.status === "resisted");
+        const bought = wishesW.filter(x => x.w.status === "bought");
+        const cooling = wishesW.filter(x => x.w.status === "cooling");
+        const saved = resisted.reduce((s, x) => s + (x.w.amount || 0), 0);
+        lines.push(`🧊 冷静购物：新增 ${wishesW.length} 件 · 忍住 ${resisted.length} 件(省 ¥${fmtMoney(saved)}) · 冷静中 ${cooling.length} 件 · 购买 ${bought.length} 件`);
+        const stLabel = { cooling: "🧊冷静中", resisted: "✋忍住", bought: "🛒买了" };
+        wishesW.forEach(({ d, w }) => lines.push(`· ${d.slice(5)} ${w.item}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}（${stLabel[w.status] || ""}）${w.reason ? "：" + w.reason : ""}`));
+    }
     // 锻炼 / 英语 / 技术
     const exs = []; days.forEach(d => (store.days[d] && store.days[d].exercises || []).forEach(x => exs.push(`${d.slice(5)} ${x.text}`)));
     if (exs.length) { lines.push("", "🏃 锻炼："); exs.forEach(x => lines.push(`· ${x}`)); }
@@ -1088,7 +1255,7 @@ function exportCSV() {
     const ratingLabel = { good: "控糖良好", mid: "一般", bad: "超标" };
     const head = ["日期", ...HABITS.map(h => h.name), "英语微任务", "英语知识点", "饮水(ml)",
         ...MEALS.flatMap(m => [m.name, m.name + "控糖评估"]),
-        "加餐", "锻炼", "排便", "体重(kg)", "睡眠", "孕期反应", "技术学习", "临时任务", "复盘", "感恩", "孕期日记", "运营", "想法碎片", "知识收藏"];
+        "加餐", "锻炼", "排便", "体重(kg)", "睡眠", "孕期反应", "技术学习", "临时任务", "复盘", "感恩", "孕期日记", "运营", "想法碎片", "知识收藏", "开支", "想买清单", "健康明细(喝水/控糖/运动/睡眠/排便/体重)"];
     const rows = [head];
     Object.keys(store.days).sort().forEach(d => {
         const o = day(d);
@@ -1104,7 +1271,7 @@ function exportCSV() {
             o.exercises.map(x => x.text).join(" | "),
             o.bowels.map(b => [b.amount ? "量·" + b.amount : "", b.honey === true ? "用蜂蜜露" : b.honey === false ? "未用蜂蜜露" : "", bowelLabel[b.healthy] || "", b.note].filter(Boolean).join(" ")).join(" | "),
             o.weight ? o.weight.value : "",
-                    o.sleep ? ({ good: "好", mid: "一般", bad: "差" }[o.sleep.quality] || "一般") : "",
+            o.sleep ? ({ good: "好", mid: "一般", bad: "差" }[o.sleep.quality] || "一般") : "",
             o.symptoms.map(s => s.tag).join(" | "),
             o.techLogs.map(t => t.text).join(" | "),
             o.tasks.map(t => (t.done ? "✓ " : "○ ") + t.text).join(" | "),
@@ -1114,11 +1281,36 @@ function exportCSV() {
             o.media.map(m => `[${m.tag}] ${m.text}`).join(" | "),
             o.thoughts.map(t => (t.tag ? `[${t.tag}] ` : "") + t.text).join(" | "),
             o.knowledge.map(k => `[${k.type}] ${k.text}`).join(" | "),
+            o.expenses.map(e => `${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "(" + e.note + ")" : ""}`).join(" | "),
+            o.wishes.map(w => `${{ cooling: "冷静中", resisted: "忍住", bought: "已买" }[w.status] || ""} ${w.item}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`).join(" | "),
+            healthDetailLine(d),
         ]);
     });
     const csv = "\uFEFF" + rows.map(r => r.map(c =>
         `"${String(c).replace(/"/g, '""').replace(/\r?\n/g, " ")}"`).join(",")).join("\r\n");
     download(`打卡数据_${todayStr()}.csv`, csv, "text/csv;charset=utf-8");
+    markExported();
+}
+function exportWishesCSV() {
+    const statusLabel = { cooling: "冷静中", resisted: "忍住了", bought: "已购买" };
+    const rows = [["物品", "预估金额", "状态", "省下金额", "理由", "加入日期", "加入时间", "决定日期"]];
+    const all = [];
+    Object.keys(store.days).forEach(d => (store.days[d].wishes || []).forEach(w => all.push({ d, w })));
+    if (!all.length) { alert("还没有想买清单记录"); return; }
+    all.sort((a, b) => (b.d + (b.w.time || "")).localeCompare(a.d + (a.w.time || "")));
+    all.forEach(({ d, w }) => rows.push([
+        w.item,
+        w.amount || "",
+        statusLabel[w.status] || "",
+        w.status === "resisted" ? (w.amount || 0) : "",
+        w.reason || "",
+        w.date || d,
+        w.time || "",
+        w.decidedAt || "",
+    ]));
+    const csv = "\uFEFF" + rows.map(r => r.map(c =>
+        `"${String(c).replace(/"/g, '""').replace(/\r?\n/g, " ")}"`).join(",")).join("\r\n");
+    download(`想买清单_${todayStr()}.csv`, csv, "text/csv;charset=utf-8");
     markExported();
 }
 function importJSON(input) {
@@ -1155,7 +1347,7 @@ function renderToday() {
     renderWeight(); renderSleep(); renderSymptoms();
 }
 function renderAll() {
-    renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderBackupTip();
+    renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderBackupTip();
     if (document.getElementById("page-history").classList.contains("active")) renderHistory();
 }
 
@@ -1183,6 +1375,23 @@ function renderBackupTip() {
     }
 }
 
+/* ==================== 持久化存储（降低系统自动清理概率） ==================== */
+async function ensurePersistentStorage() {
+    const el = document.getElementById("storageStatus");
+    if (!el) return;
+    if (!(navigator.storage && navigator.storage.persist)) {
+        el.style.display = "none";
+        return;
+    }
+    let persisted = await navigator.storage.persisted();
+    if (!persisted) persisted = await navigator.storage.persist();
+    el.style.display = "block";
+    el.className = "storage-status " + (persisted ? "ok" : "warn");
+    el.innerHTML = persisted
+        ? "🔒 已开启持久化存储，数据不会被系统自动清理"
+        : "⚠️ 未能开启持久化存储，请务必定期导出 JSON 备份（iOS 可能在长期不用后清理网页数据）";
+}
+
 /* ==================== 跨天检测 ==================== */
 let lastKnownToday = todayStr();
 function checkDayRollover() {
@@ -1205,6 +1414,7 @@ window.addEventListener("focus", checkDayRollover);
     selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
     renderThoughtTagRow();
     renderAll();
+    ensurePersistentStorage();
     if (location.protocol.startsWith("http") && "serviceWorker" in navigator)
         navigator.serviceWorker.register("sw.js").catch(() => { });
 })();
