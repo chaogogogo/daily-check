@@ -289,7 +289,7 @@ function renderEnglish() {
     });
     document.getElementById("engPhraseCount").textContent = items.length ? `已积累 ${items.length} 条` : "";
     document.getElementById("engPhraseList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${esc(x.p.text)}
+        ? items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.p.text)}
 <div class="meta"><span>${x.d} ${x.p.time}</span></div>
 <button class="del" onclick="delEngPhrase('${x.d}',${x.i})">✕</button></div>`).join("")
         : `<div class="empty-tip">还没有知识点，听到好表达随手记一条吧 ✨</div>`;
@@ -314,7 +314,7 @@ function renderTasks() {
     document.getElementById("taskList").innerHTML = tasks.map((t, i) =>
         `<div class="task-item ${t.done ? "done" : ""}">
       <span class="task-check" onclick="toggleTask(${i})">${t.done ? "✓" : ""}</span>
-      <span class="task-text" onclick="toggleTask(${i})">${esc(t.text)}</span>
+      <span class="task-text" onclick="toggleTask(${i})">${escMultiline(t.text)}</span>
       ${t.done ? `<span class="task-time">${t.time}</span>` : ""}
       <button class="del" onclick="delTask(${i})">✕</button>
     </div>`).join("");
@@ -410,6 +410,7 @@ function renderTimeline() {
         : `<div class="empty-tip">还没有记录，从第一个打卡开始吧 ✨</div>`;
 }
 function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function escMultiline(s) { return esc(s).replace(/\n/g, "<br>"); }
 
 /* ==================== 复盘 ==================== */
 function addReview() {
@@ -422,7 +423,7 @@ function delReview(i) { day().reviews.splice(i, 1); save(); renderToday(); }
 function renderReviews() {
     const list = day().reviews;
     document.getElementById("reviewList").innerHTML = list.map((r, i) =>
-        `<div class="entry">${esc(r.text)}<div class="meta"><span>${r.time}</span></div>
+        `<div class="entry">${escMultiline(r.text)}<div class="meta"><span>${r.time}</span></div>
      <button class="del" onclick="delReview(${i})">✕</button></div>`).join("");
 }
 function flash(id, msg) {
@@ -444,7 +445,7 @@ function buildSummaryText(d) {
 function renderSummary() {
     const o = day();
     const sec = (icon, title, arr) => arr.length
-        ? `<div class="sum-sec"><div class="sum-h">${icon} ${title}</div>${arr.map(x => `<div class="sum-item"><span>· ${esc(x.text)}</span><span class="sum-t">${x.time || ""}</span></div>`).join("")}</div>`
+        ? `<div class="sum-sec"><div class="sum-h">${icon} ${title}</div>${arr.map(x => `<div class="sum-item"><span>· ${escMultiline(x.text)}</span><span class="sum-t">${x.time || ""}</span></div>`).join("")}</div>`
         : "";
     const body = sec("🌙", "复盘", o.reviews) + sec("💛", "感恩", o.gratitude) + sec("🤰", "孕期日记", o.pregDiaries);
     document.getElementById("dailySummary").innerHTML =
@@ -477,7 +478,7 @@ function delGratitude(i) { day().gratitude.splice(i, 1); save(); renderToday(); 
 function renderGratitude() {
     const list = day().gratitude;
     document.getElementById("gratitudeList").innerHTML = list.map((g, i) =>
-        `<div class="entry">${esc(g.text)}<div class="meta"><span>${g.time}</span></div>
+        `<div class="entry">${escMultiline(g.text)}<div class="meta"><span>${g.time}</span></div>
      <button class="del" onclick="delGratitude(${i})">✕</button></div>`).join("");
 }
 
@@ -557,7 +558,7 @@ function renderExercises() {
     const el = document.getElementById("exerciseList");
     if (!el) return;
     el.innerHTML = list.map((x, i) =>
-        `<div class="entry">${esc(x.text)}<div class="meta"><span>${x.time}</span></div>
+        `<div class="entry">${escMultiline(x.text)}<div class="meta"><span>${x.time}</span></div>
      <button class="del" onclick="delExercise(${i})">✕</button></div>`).join("");
 }
 
@@ -604,7 +605,7 @@ function renderBowel() {
         if (b.honey === true) parts.push("用了蜂蜜露");
         if (b.honey === false) parts.push("未用蜂蜜露");
         if (b.healthy) parts.push(healthLabel[b.healthy] || "");
-        return `<div class="entry">💩 ${parts.join(" · ")}${b.note ? "<br>" + esc(b.note) : ""}
+        return `<div class="entry">💩 ${parts.join(" · ")}${b.note ? "<br>" + escMultiline(b.note) : ""}
        <div class="meta"><span>${b.time}</span></div>
        <button class="del" onclick="delBowel(${i})">✕</button></div>`;
     }).join("");
@@ -685,7 +686,7 @@ function renderTech() {
         (store.days[d].techLogs || []).forEach((t, i) => items.push({ d, i, t }));
     });
     document.getElementById("techList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${esc(x.t.text)}
+        ? items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.t.text)}
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
 <button class="del" onclick="delTech('${x.d}',${x.i})">✕</button></div>`).join("")
         : `<div class="empty-tip">今天学了什么？随手记一条，同时完成"技术学习"打卡 💪</div>`;
@@ -701,7 +702,7 @@ function delPregDiary(i) { day().pregDiaries.splice(i, 1); save(); renderToday()
 function renderPregDiaries() {
     const list = day().pregDiaries;
     document.getElementById("pregDiaryList").innerHTML = list.map((p, i) =>
-        `<div class="entry">${esc(p.text)}<div class="meta"><span>${p.time}</span></div>
+        `<div class="entry">${escMultiline(p.text)}<div class="meta"><span>${p.time}</span></div>
      <button class="del" onclick="delPregDiary(${i})">✕</button></div>`).join("");
 }
 
@@ -731,7 +732,7 @@ function renderMedia() {
         `<button class="filter-chip ${mediaFilter === t ? "sel" : ""}" onclick="setMediaFilter('${t.replace(/'/g, "\\'")}')">${t} (${t === "全部" ? all.length : all.filter(x => x.m.tag === t).length})</button>`).join("");
     const items = mediaFilter === "全部" ? all : all.filter(x => x.m.tag === mediaFilter);
     document.getElementById("mediaList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.m.tag}</span>${esc(x.m.text)}
+        ? items.map(x => `<div class="entry"><span class="tag">${x.m.tag}</span>${escMultiline(x.m.text)}
 <div class="meta"><span>${x.d} ${x.m.time}</span></div>
 <button class="del" onclick="delMedia('${x.d}',${x.i})">✕</button></div>`).join("")
         : `<div class="empty-tip">还没有运营记录，发布一条 / 整理素材就记一条吧</div>`;
@@ -777,7 +778,7 @@ function renderThoughts() {
         `<button class="filter-chip ${thoughtFilter === t ? "sel" : ""}" onclick="setThoughtFilter('${t.replace(/'/g, "\\'")}')">${esc(t)} (${t === "全部" ? all.length : all.filter(x => x.t.tag === t).length})</button>`).join("") : "";
     const items = thoughtFilter === "全部" ? all : all.filter(x => x.t.tag === thoughtFilter);
     document.getElementById("thoughtList").innerHTML = items.length
-        ? items.map(x => `<div class="entry">${x.t.tag ? `<span class="tag">${esc(x.t.tag)}</span>` : ""}${esc(x.t.text)}
+        ? items.map(x => `<div class="entry">${x.t.tag ? `<span class="tag">${esc(x.t.tag)}</span>` : ""}${escMultiline(x.t.text)}
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
 <button class="del" onclick="delThought('${x.d}',${x.i})">✕</button></div>`).join("")
         : `<div class="empty-tip">还没有想法碎片，随手记一条吧</div>`;
@@ -803,7 +804,7 @@ function renderKnowledge() {
         (store.days[d].knowledge || []).forEach((k, i) => items.push({ d, i, k }));
     });
     document.getElementById("knowledgeList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.k.type}</span>${esc(x.k.text)}
+        ? items.map(x => `<div class="entry"><span class="tag">${x.k.type}</span>${escMultiline(x.k.text)}
 <div class="meta"><span>${x.d} ${x.k.time}</span></div>
 <button class="del" onclick="delKnowledge('${x.d}',${x.i})">✕</button></div>`).join("")
         : `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`;
@@ -874,7 +875,7 @@ function renderWishes() {
                 head = `<span class="tag">🧊 冷静 ${coolDays} 天</span>`;
                 actions = `<div class="wish-actions"><button class="btn small" onclick="setWishStatus('${x.d}',${x.i},'resisted')">✋ 忍住了</button><button class="btn small ghost" onclick="setWishStatus('${x.d}',${x.i},'bought')">🛒 还是买了</button></div>`;
             }
-            return `<div class="entry">${head} <b>${esc(w.item)}</b>${w.amount ? " · ¥" + fmtMoney(w.amount) : ""}${w.reason ? `<div class="wish-reason">${esc(w.reason)}</div>` : ""}
+            return `<div class="entry">${head} <b>${esc(w.item)}</b>${w.amount ? " · ¥" + fmtMoney(w.amount) : ""}${w.reason ? `<div class="wish-reason">${escMultiline(w.reason)}</div>` : ""}
 <div class="meta"><span>${x.d} ${w.time}</span></div>${actions}
 <button class="del" onclick="delWish('${x.d}',${x.i})">✕</button></div>`;
         }).join("")
@@ -1043,7 +1044,7 @@ function renderSearch() {
     if (!q) { el.innerHTML = ""; return; }
     const hits = collectSearchItems().filter(x => x.text.toLowerCase().includes(q)).slice(0, 50);
     el.innerHTML = hits.length
-        ? hits.map(x => `<div class="entry"><span class="tag">${esc(x.type)}</span>${esc(x.text)}
+        ? hits.map(x => `<div class="entry"><span class="tag">${esc(x.type)}</span>${escMultiline(x.text)}
       <div class="meta"><span>${x.d} ${x.time || ""}</span></div></div>`).join("")
         : `<div class="empty-tip">没有找到包含「${esc(q)}」的记录</div>`;
 }
