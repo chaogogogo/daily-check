@@ -44,6 +44,35 @@
     font-family: inherit;
 }
 
+.undo-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #443a2e;
+    color: #fff;
+    padding: 11px 18px;
+    border-radius: 24px;
+    font-size: 14px;
+    z-index: 200;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .22);
+    max-width: 90%;
+}
+
+.undo-bar .undo-btn {
+    background: none;
+    border: none;
+    color: #f0b060;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
 body {
     font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     background: var(--bg);
@@ -177,6 +206,31 @@ main {
     font-weight: normal;
     color: var(--text-light);
     margin-left: auto;
+}
+
+.card.collapsible>h2 {
+    cursor: pointer;
+    user-select: none;
+}
+
+.card.collapsible>h2::after {
+    content: "▾";
+    margin-left: 8px;
+    color: var(--text-light);
+    font-size: 13px;
+    transition: transform .2s;
+}
+
+.card.collapsed>h2 {
+    margin-bottom: 0;
+}
+
+.card.collapsed>h2::after {
+    transform: rotate(-90deg);
+}
+
+.card.collapsed>*:not(h2) {
+    display: none;
 }
 
 /* 习惯打卡 */
@@ -394,6 +448,8 @@ main {
 .tl-item {
     position: relative;
     padding: 4px 0 12px;
+    display: flex;
+    align-items: center;
 }
 
 .tl-item::before {
@@ -412,6 +468,20 @@ main {
     color: var(--primary-dark);
     font-weight: 600;
     margin-right: 8px;
+    border: 1px solid transparent;
+    background: #f3ede4;
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-family: inherit;
+    cursor: pointer;
+    width: auto;
+    flex: 0 0 auto;
+}
+
+.tl-item .tl-time:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #fff;
 }
 
 .tl-item .tl-label {
@@ -889,6 +959,78 @@ table.stat-table th {
     color: #c0392b !important;
 }
 
+.module-export {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mod-all-btn {
+    padding: 12px;
+    border-radius: 12px;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    margin-bottom: 4px;
+}
+
+.mod-all-btn:disabled {
+    background: #d9cdbf;
+    cursor: not-allowed;
+}
+
+.mod-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #faf6f1;
+    border: 1.5px solid var(--border);
+}
+
+.mod-name {
+    font-size: 14px;
+    color: var(--text);
+}
+
+.mod-name em {
+    font-style: normal;
+    font-size: 12px;
+    color: var(--text-light);
+    margin-left: 8px;
+}
+
+.mod-btns {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.mod-btns button {
+    border: 1.5px solid var(--primary);
+    background: #fff;
+    color: var(--primary-dark);
+    border-radius: 14px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.mod-btns button:disabled {
+    border-color: var(--border);
+    color: var(--text-light);
+    background: #f3ede4;
+    cursor: not-allowed;
+}
+
 @media (max-width:480px) {
     .habit-grid {
         grid-template-columns: 1fr 1fr;
@@ -1188,13 +1330,36 @@ nav.tabs button.need-backup::after {
 }
 
 #backupTip {
-    background: #fdeaea;
-    border: 1.5px solid #e06a5a;
-    color: #c0392b;
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 13px;
     margin-bottom: 12px;
+}
+
+#backupTip.warn {
+    background: #fdeaea;
+    border: 1.5px solid #e06a5a;
+    color: #c0392b;
+}
+
+#backupTip.ok {
+    background: #eaf3ee;
+    border: 1.5px solid #a9cbb6;
+    color: #4c8163;
+}
+
+#backupTip .tip-share {
+    display: inline-block;
+    margin-left: 8px;
+    background: #c0392b;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
 }
 
 /* 本周热力图 */

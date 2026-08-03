@@ -21,6 +21,11 @@
         <button onclick="applyUpdate()">立即更新</button>
     </div>
 
+    <div id="undoBar" class="undo-bar" style="display:none">
+        <span class="undo-msg"></span>
+        <button class="undo-btn">↩ 撤销</button>
+    </div>
+
     <header>
         <h1>💐 CC GOGOGO</h1>
         <div class="date-nav">
@@ -64,8 +69,8 @@
                 </div>
             </div>
 
-            <div class="card">
-                <h2>🌙 每日复盘 <span class="badge">随时添加</span></h2>
+            <div class="card collapsible" data-collapse="review">
+                <h2 onclick="toggleCard(this)">🌙 每日复盘 <span class="badge">随时添加</span></h2>
                 <div class="input-with-mic">
                     <textarea id="reviewInput" rows="3" placeholder="今天做得好的、可以改进的、明天的重点……"></textarea>
                     <button class="mic-btn" id="micReview" onclick="toggleMic('reviewInput','micReview')">🎙</button>
@@ -74,8 +79,8 @@
                 <div class="entry-list" id="reviewList"></div>
             </div>
 
-            <div class="card">
-                <h2>💛 感恩的心</h2>
+            <div class="card collapsible" data-collapse="gratitude">
+                <h2 onclick="toggleCard(this)">💛 感恩的心</h2>
                 <div class="input-with-mic">
                     <textarea id="gratitudeInput" rows="2" placeholder="今天想感谢的人或事……"></textarea>
                     <button class="mic-btn" id="micGratitude"
@@ -94,8 +99,8 @@
                 </div>
             </div>
 
-            <div class="card">
-                <h2>🕐 今日时间轴</h2>
+            <div class="card collapsible" data-collapse="timeline">
+                <h2 onclick="toggleCard(this)">🕐 今日时间轴 <span class="badge">🖊 点时间可改成实际时刻</span></h2>
                 <div class="timeline" id="timeline"></div>
             </div>
         </div>
@@ -192,6 +197,8 @@
                     <button class="btn" onclick="saveWeight()">保存</button>
                     <span class="saved-tip" id="weightSaved"></span>
                 </div>
+                <textarea id="weightNote" rows="2" placeholder="体重变化心得（可选）：如吃多了 / 水肿 / 运动后……"
+                    style="margin-top:8px"></textarea>
                 <div id="weightInfo" style="font-size:13px;color:var(--text-light);margin-top:8px"></div>
             </div>
             <div class="card">
@@ -295,7 +302,8 @@
         <div class="tab-page" id="page-history">
             <div class="card">
                 <h2>🔍 搜索记录</h2>
-                <input type="text" id="searchInput" placeholder="搜想法、知识、日记、复盘、技术笔记……" oninput="renderSearch()">
+                <input type="text" id="searchInput" placeholder="搜想法/知识/日记/复盘/技术/开支/餐食/体重/睡眠/反应…… 也可搜类别名"
+                    oninput="renderSearch()">
                 <div class="entry-list" id="searchResults"></div>
             </div>
             <div class="card">
@@ -342,6 +350,8 @@
                 <div class="data-btns">
                     <button onclick="exportJSON()">📦 导出 JSON（完整备份 / AI 分析）
                         <span class="desc">包含全部原始数据，可重新导入恢复，也适合喂给 AI 做分析</span></button>
+                    <button onclick="shareBackup()">📤 分享备份到 iCloud / 微信…
+                        <span class="desc">调用系统分享，存到「文件」「备忘录」或发给自己，随时可导入恢复</span></button>
                     <button onclick="exportCSV()">📊 导出 CSV（表格查看）
                         <span class="desc">每日一行的打卡汇总，可用 Excel / Numbers 打开</span></button>
                     <button onclick="exportWishesCSV()">🧊 导出想买清单 CSV
@@ -353,6 +363,14 @@
                     <button class="danger" onclick="clearAll()">🗑 清空全部数据
                         <span class="desc">危险操作，清空前请先导出备份</span></button>
                 </div>
+            </div>
+
+            <div class="card">
+                <h2>📝 文字模块单独导出</h2>
+                <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">
+                    把复盘、日记、想法等大段文字单独导出，方便按主题备份或阅读。<b>MD</b> 排版美观适合阅读，<b>CSV</b> 适合表格/Excel。
+                </p>
+                <div id="moduleExport" class="module-export"></div>
             </div>
         </div>
     </main>

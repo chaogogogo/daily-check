@@ -108,7 +108,7 @@ function day(d) {
     o.thoughts = o.thoughts || [];   // [{text,time,voice}]
     o.knowledge = o.knowledge || [];   // [{text,type,time}]
     o.tasks = o.tasks || [];   // [{text,done,time}]
-    o.weight = o.weight || null;   // {value,time}
+    o.weight = o.weight || null;   // {value,time,note}
     o.sleep = o.sleep || null;   // {quality:"good"|"mid"|"bad",time}
     o.symptoms = o.symptoms || [];   // [{tag,time}]
     o.techLogs = o.techLogs || [];   // [{text,time}]
@@ -172,6 +172,7 @@ document.getElementById("tabs").addEventListener("click", e => {
     document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tab-page").forEach(p => p.classList.toggle("active", p.id === "page-" + btn.dataset.tab));
     if (btn.dataset.tab === "history") renderHistory();
+    if (btn.dataset.tab === "data") renderModuleExport();
 });
 
 /* ==================== 习惯打卡 ==================== */
@@ -206,7 +207,19 @@ function renderHabits() {
     const n = habitDoneCount(), total = HABITS.length;
     document.getElementById("habitProgress").textContent = `${n}/${total}`;
     document.getElementById("habitBar").style.width = (n / total * 100) + "%";
-    document.getElementById("habitBarText").textContent = n === total ? "🎉 今日全部完成，太棒啦！" : `已完成 ${n}/${total}`;
+    const streak = overallStreak();
+    const streakTxt = streak > 1 ? ` · 🔥 连续 ${streak} 天` : "";
+    document.getElementById("habitBarText").textContent = (n === total ? "🎉 今日全部完成，太棒啦！" : `已完成 ${n}/${total}`) + streakTxt;
+}
+function overallStreak() {
+    const today = todayStr();
+    let streak = 0;
+    for (let i = 0; ; i++) {
+        const d = offsetDate(today, -i);
+        if (habitDoneCount(d) >= 1) streak++;
+        else { if (i === 0) continue; break; } // 今天还没打卡不打断昨天起的连续记录
+    }
+    return streak;
 }
 
 /* ==================== 英语提升 ==================== */
@@ -240,7 +253,7 @@ function addEngPhrase() {
     day().english.phrases.push({ text, time: nowTime() });
     ta.value = ""; save(); flash("engPhraseSaved"); renderToday();
 }
-function delEngPhrase(d, i) { day(d).english.phrases.splice(i, 1); save(); renderToday(); }
+function delEngPhrase(d, i) { removeWithUndo(day(d).english.phrases, i, "知识点", renderToday); }
 function engStreak() {
     const today = todayStr();
     let streak = 0;
@@ -308,7 +321,7 @@ function toggleTask(i) {
     t.time = t.done ? nowTime() : "";
     save(); renderToday();
 }
-function delTask(i) { day().tasks.splice(i, 1); save(); renderToday(); }
+function delTask(i) { removeWithUndo(day().tasks, i, "任务", renderToday); }
 function renderTasks() {
     const tasks = day().tasks;
     document.getElementById("taskList").innerHTML = tasks.map((t, i) =>
@@ -368,49 +381,90 @@ function collectTimeline(d) {
     const o = day(d), ev = [];
     HABITS.forEach(h => {
         if (!h.auto && o.habits[h.id] && o.habits[h.id].done && o.habits[h.id].time)
-            ev.push({ time: o.habits[h.id].time, label: `${h.icon} 完成打卡：${h.name}` });
+            ev.push({ time: o.habits[h.id].time, label: `${h.icon} 完成打卡：${h.name}`, ref: o.habits[h.id] });
     });
-    o.waterLogs.forEach(l => ev.push({ time: l.time, label: `💧 喝水 ${l.amount}ml` }));
+    o.waterLogs.forEach(l => ev.push({ time: l.time, label: `💧 喝水 ${l.amount}ml`, ref: l }));
     ENG_TASKS.forEach(t => {
-        if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${trunc(p.text, 18)}` }); });
-        else if (o.english.tasks[t.id] && o.english.tasks[t.id].count > 0) ev.push({ time: o.english.tasks[t.id].time, label: `${t.icon} 英语：${t.name}${o.english.tasks[t.id].count > 1 ? ` ×${o.english.tasks[t.id].count}` : ""}` });
+        if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${trunc(p.text, 18)}`, ref: p }); });
+        else if (o.english.tasks[t.id] && o.english.tasks[t.id].count > 0) ev.push({ time: o.english.tasks[t.id].time, label: `${t.icon} 英语：${t.name}${o.english.tasks[t.id].count > 1 ? ` ×${o.english.tasks[t.id].count}` : ""}`, ref: o.english.tasks[t.id] });
     });
-    o.tasks.forEach(t => { if (t.done && t.time) ev.push({ time: t.time, label: `📌 完成任务：${trunc(t.text, 18)}` }); });
-    Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}` }); });
-    o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${trunc(r.text, 18)}` }); });
-    o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${trunc(g.text, 18)}` }));
+    o.tasks.forEach(t => { if (t.done && t.time) ev.push({ time: t.time, label: `📌 完成任务：${trunc(t.text, 18)}`, ref: t }); });
+    Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}`, ref: s }); });
+    o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${trunc(r.text, 18)}`, ref: r }); });
+    o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${trunc(g.text, 18)}`, ref: g }));
     Object.entries(o.meals).forEach(([mid, m]) => {
         const meal = MEALS.find(x => x.id === mid);
-        if (meal && m.time && (m.food || m.rating)) ev.push({ time: m.time, label: `${meal.icon} 记录${meal.name}${m.food ? "：" + trunc(m.food, 14) : ""}` });
+        if (meal && m.time && (m.food || m.rating)) ev.push({ time: m.time, label: `${meal.icon} 记录${meal.name}${m.food ? "：" + trunc(m.food, 14) : ""}`, ref: m });
     });
-    o.snacks.forEach(s => { if (s.time && (s.food || s.rating)) ev.push({ time: s.time, label: `🍎 加餐${s.food ? "：" + trunc(s.food, 14) : ""}` }); });
-    o.exercises.forEach(x => ev.push({ time: x.time, label: `🏃 锻炼：${trunc(x.text, 18)}` }));
-    o.bowels.forEach(b => { const extra = [b.amount ? "量·" + b.amount : "", b.honey === true ? "蜂蜜露" : ""].filter(Boolean).join(" "); ev.push({ time: b.time, label: `💩 排便${extra ? "（" + extra + "）" : ""}` }); });
-    o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${trunc(p.text, 18)}` }); });
-    if (o.weight && o.weight.time) ev.push({ time: o.weight.time, label: `⚖️ 体重 ${o.weight.value} kg` });
+    o.snacks.forEach(s => { if (s.time && (s.food || s.rating)) ev.push({ time: s.time, label: `🍎 加餐${s.food ? "：" + trunc(s.food, 14) : ""}`, ref: s }); });
+    o.exercises.forEach(x => ev.push({ time: x.time, label: `🏃 锻炼：${trunc(x.text, 18)}`, ref: x }));
+    o.bowels.forEach(b => { const extra = [b.amount ? "量·" + b.amount : "", b.honey === true ? "蜂蜜露" : ""].filter(Boolean).join(" "); ev.push({ time: b.time, label: `💩 排便${extra ? "（" + extra + "）" : ""}`, ref: b }); });
+    o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${trunc(p.text, 18)}`, ref: p }); });
+    if (o.weight && o.weight.time) ev.push({ time: o.weight.time, label: `⚖️ 体重 ${o.weight.value} kg${o.weight.note ? "·" + trunc(o.weight.note, 12) : ""}`, ref: o.weight });
     if (o.sleep && o.sleep.time) {
         const sLabel = { good: "好 😊", mid: "一般 😐", bad: "差 😵" };
-        ev.push({ time: o.sleep.time, label: `😴 睡眠：${sLabel[o.sleep.quality] || "一般 😐"}` });
+        ev.push({ time: o.sleep.time, label: `😴 睡眠：${sLabel[o.sleep.quality] || "一般 😐"}`, ref: o.sleep });
     }
-    o.symptoms.forEach(s => ev.push({ time: s.time, label: `🤕 孕期反应：${s.tag}` }));
-    o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${trunc(t.text, 18)}` }));
-    o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}` }));
-    o.thoughts.forEach(t => ev.push({ time: t.time, label: `💭 想法${t.tag ? "[" + t.tag + "]" : ""}：${trunc(t.text, 18)}` }));
-    o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}` }));
-    o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "·" + trunc(e.note, 10) : ""}` }));
-    o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${trunc(w.item, 14)}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}` }); });
-    ev.sort((a, b) => a.time.localeCompare(b.time));
+    o.symptoms.forEach(s => ev.push({ time: s.time, label: `🤕 孕期反应：${s.tag}`, ref: s }));
+    o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${trunc(t.text, 18)}`, ref: t }));
+    o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}`, ref: m }));
+    o.thoughts.forEach(t => ev.push({ time: t.time, label: `💭 想法${t.tag ? "[" + t.tag + "]" : ""}：${trunc(t.text, 18)}`, ref: t }));
+    o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}`, ref: k }));
+    o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "·" + trunc(e.note, 10) : ""}`, ref: e }));
+    o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${trunc(w.item, 14)}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`, ref: w }); });
+    ev.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
     return ev;
 }
 function trunc(s, n) { s = s.trim(); return s.length > n ? s.slice(0, n) + "…" : s; }
+let timelineRefs = [];
 function renderTimeline() {
     const ev = collectTimeline();
+    timelineRefs = ev.map(e => e.ref);
     document.getElementById("timeline").innerHTML = ev.length
-        ? ev.map(e => `<div class="tl-item"><span class="tl-time">${e.time}</span><span class="tl-label">${esc(e.label)}</span></div>`).join("")
+        ? ev.map((e, i) => `<div class="tl-item"><input type="time" class="tl-time" value="${e.time || ""}" onchange="setTimelineTime(${i},this.value)" title="点击修改实际时间"><span class="tl-label">${esc(e.label)}</span></div>`).join("")
         : `<div class="empty-tip">还没有记录，从第一个打卡开始吧 ✨</div>`;
+}
+function setTimelineTime(i, val) {
+    const ref = timelineRefs[i];
+    if (!ref || !val) { renderTimeline(); return; } // 空值不清除，恢复原样
+    ref.time = val;
+    save(); renderTimeline();
 }
 function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 function escMultiline(s) { return esc(s).replace(/\n/g, "<br>"); }
+
+/* ==================== 删除撤销 ==================== */
+let undoTimer = null;
+function removeWithUndo(arr, i, label, rerender) {
+    const removed = arr.splice(i, 1)[0];
+    save(); rerender();
+    showUndo(`已删除${label}`, () => { arr.splice(Math.min(i, arr.length), 0, removed); save(); rerender(); });
+}
+function showUndo(msg, restore) {
+    const bar = document.getElementById("undoBar"); if (!bar) return;
+    clearTimeout(undoTimer);
+    bar.querySelector(".undo-msg").textContent = msg;
+    bar.querySelector(".undo-btn").onclick = () => { restore(); hideUndo(); };
+    bar.style.display = "flex";
+    undoTimer = setTimeout(hideUndo, 5000);
+}
+function hideUndo() { clearTimeout(undoTimer); const bar = document.getElementById("undoBar"); if (bar) bar.style.display = "none"; }
+
+/* ==================== 卡片折叠 ==================== */
+function toggleCard(h2) {
+    const card = h2.closest(".card"); if (!card) return;
+    const id = card.dataset.collapse;
+    card.classList.toggle("collapsed");
+    store.settings.collapsed = store.settings.collapsed || {};
+    store.settings.collapsed[id] = card.classList.contains("collapsed");
+    save();
+}
+function applyCollapsedState() {
+    const map = store.settings.collapsed || {};
+    document.querySelectorAll(".card.collapsible").forEach(card => {
+        card.classList.toggle("collapsed", !!map[card.dataset.collapse]);
+    });
+}
 
 /* ==================== 复盘 ==================== */
 function addReview() {
@@ -419,7 +473,7 @@ function addReview() {
     day().reviews.push({ text, time: nowTime() });
     ta.value = ""; save(); renderToday();
 }
-function delReview(i) { day().reviews.splice(i, 1); save(); renderToday(); }
+function delReview(i) { removeWithUndo(day().reviews, i, "复盘", renderToday); }
 function renderReviews() {
     const list = day().reviews;
     document.getElementById("reviewList").innerHTML = list.map((r, i) =>
@@ -474,7 +528,7 @@ function addGratitude() {
     day().gratitude.push({ text, time: nowTime() });
     ta.value = ""; save(); renderToday();
 }
-function delGratitude(i) { day().gratitude.splice(i, 1); save(); renderToday(); }
+function delGratitude(i) { removeWithUndo(day().gratitude, i, "感恩", renderToday); }
 function renderGratitude() {
     const list = day().gratitude;
     document.getElementById("gratitudeList").innerHTML = list.map((g, i) =>
@@ -529,7 +583,7 @@ function setSnackRating(i, rating) {
     s.time = s.time || nowTime();
     save(); renderSnacks(); renderTimeline();
 }
-function delSnack(i) { day().snacks.splice(i, 1); save(); renderSnacks(); renderTimeline(); }
+function delSnack(i) { removeWithUndo(day().snacks, i, "加餐", () => { renderSnacks(); renderTimeline(); }); }
 function renderSnacks() {
     const snacks = day().snacks;
     const el = document.getElementById("snackList");
@@ -552,7 +606,7 @@ function addExercise() {
     day().exercises.push({ text, time: nowTime() });
     ta.value = ""; save(); renderExercises(); renderTimeline();
 }
-function delExercise(i) { day().exercises.splice(i, 1); save(); renderExercises(); renderTimeline(); }
+function delExercise(i) { removeWithUndo(day().exercises, i, "锻炼", () => { renderExercises(); renderTimeline(); }); }
 function renderExercises() {
     const list = day().exercises;
     const el = document.getElementById("exerciseList");
@@ -593,7 +647,7 @@ function addBowel() {
     document.getElementById("bowelNote").value = "";
     save(); renderBowelForm(); renderBowel(); renderTimeline();
 }
-function delBowel(i) { day().bowels.splice(i, 1); save(); renderBowel(); renderTimeline(); }
+function delBowel(i) { removeWithUndo(day().bowels, i, "排便记录", () => { renderBowel(); renderTimeline(); }); }
 function renderBowel() {
     const list = day().bowels;
     const el = document.getElementById("bowelList");
@@ -616,7 +670,8 @@ function saveWeight() {
     const input = document.getElementById("weightInput");
     const v = parseFloat(input.value);
     if (!v || v <= 0) { alert("请输入有效体重"); return; }
-    day().weight = { value: v, time: nowTime() };
+    const note = document.getElementById("weightNote").value.trim();
+    day().weight = { value: v, time: nowTime(), note };
     save(); flash("weightSaved"); renderWeight(); renderTimeline();
 }
 function lastWeightBefore(d) {
@@ -629,6 +684,7 @@ function renderWeight() {
     const o = day();
     const input = document.getElementById("weightInput");
     input.value = o.weight ? o.weight.value : "";
+    document.getElementById("weightNote").value = o.weight && o.weight.note ? o.weight.note : "";
     const prev = lastWeightBefore(currentDate);
     let info = "";
     if (o.weight && prev) {
@@ -679,7 +735,7 @@ function addTech() {
     day().techLogs.push({ text, time: nowTime() });
     ta.value = ""; save(); renderTech(); renderHabits(); renderTimeline();
 }
-function delTech(d, i) { day(d).techLogs.splice(i, 1); save(); renderTech(); renderHabits(); renderTimeline(); }
+function delTech(d, i) { removeWithUndo(day(d).techLogs, i, "技术笔记", () => { renderTech(); renderHabits(); renderTimeline(); }); }
 function renderTech() {
     const items = [];
     Object.keys(store.days).sort().reverse().forEach(d => {
@@ -698,7 +754,7 @@ function renderTech() {
     day().pregDiaries.push({ text, time: nowTime() });
     ta.value = ""; save(); renderToday();
 }
-function delPregDiary(i) { day().pregDiaries.splice(i, 1); save(); renderToday(); }
+function delPregDiary(i) { removeWithUndo(day().pregDiaries, i, "孕期日记", renderToday); }
 function renderPregDiaries() {
     const list = day().pregDiaries;
     document.getElementById("pregDiaryList").innerHTML = list.map((p, i) =>
@@ -719,7 +775,7 @@ function addMedia() {
     day().media.push({ text, tag: mediaTag, time: nowTime() });
     ta.value = ""; save(); renderMedia(); renderTimeline();
 }
-function delMedia(d, i) { day(d).media.splice(i, 1); save(); renderMedia(); renderTimeline(); }
+function delMedia(d, i) { removeWithUndo(day(d).media, i, "运营记录", () => { renderMedia(); renderTimeline(); }); }
 function setMediaFilter(tag) { mediaFilter = tag; renderMedia(); }
 function renderMedia() {
     const all = [];
@@ -764,7 +820,7 @@ function addThought() {
     day().thoughts.push({ text, tag: thoughtTag, time: nowTime(), date: currentDate });
     ta.value = ""; save(); renderThoughts(); renderTimeline();
 }
-function delThought(d, i) { day(d).thoughts.splice(i, 1); save(); renderThoughts(); renderTimeline(); }
+function delThought(d, i) { removeWithUndo(day(d).thoughts, i, "想法", () => { renderThoughts(); renderTimeline(); }); }
 function setThoughtFilter(tag) { thoughtFilter = tag; renderThoughts(); }
 function renderThoughts() {
     // 展示所有日期的想法（近到远），方便回顾整理
@@ -797,7 +853,7 @@ function addKnowledge() {
     day().knowledge.push({ text, type: kType, time: nowTime() });
     ta.value = ""; save(); renderKnowledge(); renderTimeline();
 }
-function delKnowledge(d, i) { day(d).knowledge.splice(i, 1); save(); renderKnowledge(); renderTimeline(); }
+function delKnowledge(d, i) { removeWithUndo(day(d).knowledge, i, "知识", () => { renderKnowledge(); renderTimeline(); }); }
 function renderKnowledge() {
     const items = [];
     Object.keys(store.days).sort().reverse().forEach(d => {
@@ -830,7 +886,7 @@ function addExpense() {
     amtEl.value = ""; document.getElementById("expenseNote").value = "";
     save(); renderWealth(); renderTimeline();
 }
-function delExpense(i) { day().expenses.splice(i, 1); save(); renderWealth(); renderTimeline(); }
+function delExpense(i) { removeWithUndo(day().expenses, i, "开支", () => { renderWealth(); renderTimeline(); }); }
 function renderExpenses() {
     const list = day().expenses;
     document.getElementById("expenseTodayBadge").textContent = "¥" + fmtMoney(expenseTotal(currentDate));
@@ -854,7 +910,7 @@ function setWishStatus(d, i, status) {
     w.status = status; w.decidedAt = todayStr();
     save(); renderWealth();
 }
-function delWish(d, i) { day(d).wishes.splice(i, 1); save(); renderWealth(); }
+function delWish(d, i) { removeWithUndo(day(d).wishes, i, "想买记录", renderWealth); }
 function setWishFilter(f) { wishFilter = f; renderWishes(); }
 function renderWishes() {
     const all = [];
@@ -1021,6 +1077,9 @@ function renderHistory() { renderCalendar(); renderTrends(); renderWeekly(); ren
 /* ==================== 全局搜索 ==================== */
 function collectSearchItems() {
     const items = [];
+    const rlbl = { good: "控糖良好", mid: "一般", bad: "超标" };
+    const slbl = { good: "好", mid: "一般", bad: "差" };
+    const blbl = { good: "健康", mid: "一般", bad: "不佳" };
     Object.keys(store.days).sort().reverse().forEach(d => {
         const o = store.days[d];
         (o.thoughts || []).forEach(x => items.push({ d, time: x.time, type: x.tag ? "想法·" + x.tag : "想法", text: x.text }));
@@ -1035,6 +1094,13 @@ function collectSearchItems() {
         (o.tasks || []).forEach(x => items.push({ d, time: x.time, type: "任务", text: x.text }));
         (o.expenses || []).forEach(x => items.push({ d, time: x.time, type: "开支·" + x.cat, text: (x.note || "") + " ¥" + x.amount }));
         (o.wishes || []).forEach(x => items.push({ d, time: x.time, type: "想买", text: x.item + (x.reason ? " — " + x.reason : "") }));
+        MEALS.forEach(m => { const r = o.meals && o.meals[m.id]; if (r && (r.food || r.rating)) items.push({ d, time: r.time, type: m.name, text: (r.food || "") + (r.rating ? "（" + (rlbl[r.rating] || "") + "）" : "") }); });
+        (o.snacks || []).forEach(x => { if (x.food || x.rating) items.push({ d, time: x.time, type: "加餐", text: (x.food || "") + (x.rating ? "（" + (rlbl[x.rating] || "") + "）" : "") }); });
+        (o.bowels || []).forEach(x => { const parts = [x.amount ? "量·" + x.amount : "", x.honey === true ? "用蜂蜜露" : "", blbl[x.healthy] || "", x.note || ""].filter(Boolean).join(" "); items.push({ d, time: x.time, type: "排便", text: parts }); });
+        if (o.weight && o.weight.value != null) items.push({ d, time: o.weight.time, type: "体重", text: o.weight.value + " kg" + (o.weight.note ? " — " + o.weight.note : "") });
+        if (o.sleep && o.sleep.quality) items.push({ d, time: o.sleep.time, type: "睡眠", text: slbl[o.sleep.quality] || "一般" });
+        (o.symptoms || []).forEach(x => items.push({ d, time: x.time, type: "孕期反应", text: x.tag }));
+        Object.entries(o.supplements || {}).forEach(([n, s]) => { if (s.done) items.push({ d, time: s.time, type: "补剂", text: n }); });
     });
     return items;
 }
@@ -1042,7 +1108,7 @@ function renderSearch() {
     const el = document.getElementById("searchResults");
     const q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
     if (!q) { el.innerHTML = ""; return; }
-    const hits = collectSearchItems().filter(x => x.text.toLowerCase().includes(q)).slice(0, 50);
+    const hits = collectSearchItems().filter(x => (x.text || "").toLowerCase().includes(q) || (x.type || "").toLowerCase().includes(q)).slice(0, 80);
     el.innerHTML = hits.length
         ? hits.map(x => `<div class="entry"><span class="tag">${esc(x.type)}</span>${escMultiline(x.text)}
       <div class="meta"><span>${x.d} ${x.time || ""}</span></div></div>`).join("")
@@ -1248,9 +1314,110 @@ function download(filename, content, mime) {
     a.click();
     URL.revokeObjectURL(a.href);
 }
+
+/* ==================== 文字模块单独导出（Markdown / CSV） ==================== */
+const TEXT_MODULES = [
+    { key: "reviews", name: "每日复盘", icon: "🌙", get: o => o.reviews || [] },
+    { key: "gratitude", name: "感恩的心", icon: "💛", get: o => o.gratitude || [] },
+    { key: "techLogs", name: "技术学习", icon: "💻", get: o => o.techLogs || [] },
+    { key: "pregDiaries", name: "孕期日记", icon: "🤰", get: o => o.pregDiaries || [] },
+    { key: "thoughts", name: "想法碎片", icon: "💭", get: o => o.thoughts || [], tagField: "tag" },
+    { key: "knowledge", name: "知识收藏", icon: "📚", get: o => o.knowledge || [], tagField: "type" },
+    { key: "media", name: "自媒体运营", icon: "📣", get: o => o.media || [], tagField: "tag" },
+    { key: "phrases", name: "英语知识点", icon: "✍️", get: o => (o.english && o.english.phrases) || [] },
+];
+function moduleEntries(mod) {
+    const arr = [];
+    Object.keys(store.days).sort().reverse().forEach(d => {
+        (mod.get(store.days[d]) || []).forEach(e => arr.push({ d, e }));
+    });
+    return arr;
+}
+function buildModuleMarkdown(mod, entries) {
+    const lines = [`# ${mod.icon} ${mod.name}`, "", `> 导出于 ${todayStr()} ${nowTime()} · 共 ${entries.length} 条`];
+    let curDate = "";
+    entries.forEach(({ d, e }) => {
+        if (d !== curDate) { curDate = d; lines.push("", `## 📅 ${d}`); }
+        const tag = mod.tagField ? (e[mod.tagField] || "") : "";
+        lines.push("", `**🕐 ${e.time || "—"}**${tag ? ` · \`${tag}\`` : ""}`, "");
+        (e.text || "").trim().split("\n").forEach(l => lines.push(l.length ? l : ""));
+    });
+    return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+function buildModuleCSV(mod, entries) {
+    const head = ["日期", "时间"];
+    if (mod.tagField) head.push("标签");
+    head.push("内容");
+    const rows = [head];
+    entries.forEach(({ d, e }) => {
+        const row = [d, e.time || ""];
+        if (mod.tagField) row.push(e[mod.tagField] || "");
+        row.push(e.text || "");
+        rows.push(row);
+    });
+    return "\uFEFF" + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+}
+function exportModule(key, format) {
+    const mod = TEXT_MODULES.find(m => m.key === key); if (!mod) return;
+    const entries = moduleEntries(mod);
+    if (!entries.length) { alert(`「${mod.name}」还没有内容可导出`); return; }
+    if (format === "md") download(`${mod.name}_${todayStr()}.md`, buildModuleMarkdown(mod, entries), "text/markdown;charset=utf-8");
+    else download(`${mod.name}_${todayStr()}.csv`, buildModuleCSV(mod, entries), "text/csv;charset=utf-8");
+    markExported();
+}
+function exportAllModulesMarkdown() {
+    const sections = TEXT_MODULES.map(mod => ({ mod, entries: moduleEntries(mod) })).filter(s => s.entries.length);
+    if (!sections.length) { alert("还没有任何文字内容可导出"); return; }
+    const total = sections.reduce((s, x) => s + x.entries.length, 0);
+    const toc = sections.map(s => `- [${s.mod.icon} ${s.mod.name}](#${s.mod.icon}-${s.mod.name}) （${s.entries.length} 条）`);
+    const parts = [
+        "# 💐 CC GOGOGO 文字备份",
+        "",
+        `> 导出于 ${todayStr()} ${nowTime()} · 共 ${sections.length} 个模块 · ${total} 条`,
+        "",
+        "## 目录",
+        "",
+        ...toc,
+    ];
+    sections.forEach(s => {
+        parts.push("", "---", "", buildModuleMarkdown(s.mod, s.entries).trim());
+    });
+    download(`CC-GOGOGO文字备份_${todayStr()}.md`, parts.join("\n") + "\n", "text/markdown;charset=utf-8");
+    markExported();
+}
+function renderModuleExport() {
+    const el = document.getElementById("moduleExport"); if (!el) return;
+    const rows = TEXT_MODULES.map(m => {
+        const n = moduleEntries(m).length;
+        return `<div class="mod-row">
+      <span class="mod-name">${m.icon} ${m.name}<em>${n} 条</em></span>
+      <span class="mod-btns">
+        <button ${n ? "" : "disabled"} onclick="exportModule('${m.key}','md')">MD</button>
+        <button ${n ? "" : "disabled"} onclick="exportModule('${m.key}','csv')">CSV</button>
+      </span>
+    </div>`;
+    }).join("");
+    const total = TEXT_MODULES.reduce((s, m) => s + moduleEntries(m).length, 0);
+    el.innerHTML = `<button class="mod-all-btn" ${total ? "" : "disabled"} onclick="exportAllModulesMarkdown()">📚 一键打包导出全部（单个 Markdown）</button>${rows}`;
+}
 function exportJSON() {
     download(`打卡数据备份_${todayStr()}.json`, JSON.stringify(store, null, 2), "application/json");
     markExported();
+}
+async function shareBackup() {
+    const content = JSON.stringify(store, null, 2);
+    const filename = `打卡数据备份_${todayStr()}.json`;
+    try {
+        const file = new File([content], filename, { type: "application/json" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: "CC GOGOGO 备份", text: "我的打卡数据备份" });
+            markExported();
+            return;
+        }
+    } catch (e) {
+        if (e && e.name === "AbortError") return; // 用户取消分享
+    }
+    download(filename, content, "application/json"); // 不支持分享文件时退回下载
 }
 function exportCSV() {
     const ratingLabel = { good: "控糖良好", mid: "一般", bad: "超标" };
@@ -1348,7 +1515,7 @@ function renderToday() {
     renderWeight(); renderSleep(); renderSymptoms();
 }
 function renderAll() {
-    renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderBackupTip();
+    renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderModuleExport(); renderBackupTip();
     if (document.getElementById("page-history").classList.contains("active")) renderHistory();
 }
 
@@ -1365,14 +1532,19 @@ function renderBackupTip() {
         if (!last) overdue = 999;
         else overdue = Math.round((new Date(todayStr()) - new Date(last)) / 86400000);
     }
-    const need = hasData && overdue >= 7;
+    const need = hasData && overdue >= 3;
     document.querySelector('nav.tabs button[data-tab="data"]').classList.toggle("need-backup", need);
     const tip = document.getElementById("backupTip");
+    if (!tip) return;
+    if (!hasData) { tip.style.display = "none"; return; }
+    tip.style.display = "block";
     if (need) {
-        tip.style.display = "block";
-        tip.innerHTML = `⚠️ ${last ? `已 <b>${overdue}</b> 天未备份` : "从未备份过"}，建议立即导出 JSON 保存到云盘/相册`;
+        tip.className = "warn";
+        tip.innerHTML = `⚠️ ${last ? `已 <b>${overdue}</b> 天未备份` : "从未备份过"}，为避免数据丢失，建议现在备份
+          <button class="tip-share" onclick="shareBackup()">📤 立即备份</button>`;
     } else {
-        tip.style.display = "none";
+        tip.className = "ok";
+        tip.innerHTML = `✅ 上次备份：${overdue === 0 ? "今天" : overdue + " 天前"}，数据安全`;
     }
 }
 
@@ -1415,6 +1587,7 @@ window.addEventListener("focus", checkDayRollover);
     selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
     renderThoughtTagRow();
     renderAll();
+    applyCollapsedState();
     ensurePersistentStorage();
     registerServiceWorker();
 })();
