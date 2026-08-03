@@ -29,12 +29,14 @@
     <header>
         <h1>💐 CC GOGOGO</h1>
         <div class="date-nav">
-            <button onclick="shiftDate(-1)">‹</button>
+            <button onclick="shiftDate(-1)" title="前一天（补录）">‹</button>
             <input type="date" id="datePicker" onchange="setDate(this.value)">
-            <button onclick="shiftDate(1)">›</button>
+            <button onclick="shiftDate(1)" title="后一天">›</button>
         </div>
-        <div class="not-today-tip" id="notTodayTip" style="display:none">正在查看历史记录 · <a
-                onclick="setDate(todayStr())">回到今天</a></div>
+        <div class="date-hint" id="dateHint">← → 或点日期，可切到其他日期补录</div>
+        <div class="not-today-tip" id="notTodayTip" style="display:none">
+            <span id="notTodayText"></span> · <a onclick="setDate(todayStr())">回到今天</a>
+        </div>
     </header>
 
     <nav class="tabs" id="tabs">
@@ -150,21 +152,27 @@
                 <h2>🍚 一日三餐 · 控糖记录</h2>
                 <div id="mealBlocks"></div>
             </div>
-            <div class="card">
+            <div class="card" data-module="snack">
                 <h2>🍎 加餐 <span class="badge">随时添加</span></h2>
                 <div id="snackList"></div>
                 <div class="btn-row"><button class="btn small" onclick="addSnack()">+ 添加加餐</button></div>
             </div>
-            <div class="card">
-                <h2>💧 喝水记录 <span class="badge">目标 2000ml</span></h2>
+            <div class="card" data-module="water">
+                <h2>💧 喝水记录 <span class="badge" id="waterGoalBadge">目标 2000ml</span></h2>
                 <div class="water-row">
                     <div class="water-cups" id="waterCups"></div>
                 </div>
                 <div class="btn-row water-btns">
-                    <button onclick="addWater(200)">+200ml</button>
+                    <button id="waterCupBtn" onclick="addWater(200)">+200ml</button>
                     <button onclick="addWater(500)">+500ml</button>
                     <button onclick="addWater(-1)">↩ 撤销</button>
                     <span class="water-total">已喝 <b id="waterTotal">0</b> ml</span>
+                </div>
+                <div class="water-config">
+                    目标 <input type="number" id="waterGoalInput" min="200" step="100"
+                        onchange="setWaterGoal(this.value)"> ml
+                    · 每杯 <input type="number" id="waterCupInput" min="50" step="50" onchange="setWaterCup(this.value)">
+                    ml
                 </div>
             </div>
             <div class="card">
@@ -182,7 +190,7 @@
                 <div class="btn-row"><button class="btn" onclick="addExercise()">记录锻炼</button></div>
                 <div class="entry-list" id="exerciseList"></div>
             </div>
-            <div class="card">
+            <div class="card" data-module="bowel">
                 <h2>💩 排便记录 <span class="badge">随时添加</span></h2>
                 <div id="bowelForm"></div>
                 <input type="text" id="bowelNote" placeholder="颜色、形状、其他备注……" style="margin-top:8px">
@@ -205,12 +213,12 @@
                 <h2>😴 睡眠情况 <span class="badge">昨晚睡得如何</span></h2>
                 <div class="bowel-row" id="sleepRow" style="margin-bottom:0"></div>
             </div>
-            <div class="card">
+            <div class="card" data-module="symptoms">
                 <h2>🤕 孕期反应 <span class="badge">点选今日出现的反应</span></h2>
                 <div class="supp-list" id="symptomList"></div>
                 <span class="supp-manage" onclick="addSymptomTag()">+ 添加自定义标签</span>
             </div>
-            <div class="card">
+            <div class="card" data-module="pregDiary">
                 <h2>🤰 孕期日记 <span class="badge">随时添加</span></h2>
                 <div class="input-with-mic">
                     <textarea id="pregDiaryInput" rows="4" placeholder="今天宝宝的胎动、身体的感受、心情、产检记录……"></textarea>
@@ -250,7 +258,7 @@
                 <div class="btn-row"><button class="btn" onclick="addKnowledge()">收藏知识</button></div>
                 <div class="entry-list" id="knowledgeList"></div>
             </div>
-            <div class="card">
+            <div class="card" data-module="media">
                 <h2>📣 自媒体运营 <span class="badge">按 tag 汇总</span></h2>
                 <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="mediaTagRow">
                     <button class="btn small ghost" data-mtag="小红书" onclick="selectMediaTag(this)">📕 小红书</button>
@@ -341,36 +349,60 @@
         <!-- ============ 数据 ============ -->
         <div class="tab-page" id="page-data">
             <div class="card">
-                <h2>💾 数据管理</h2>
+                <h2>💾 备份与恢复</h2>
                 <div id="backupTip" style="display:none"></div>
-                <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">
-                    所有数据仅保存在本机浏览器（localStorage）中，不会上传。建议定期导出 JSON 备份。
-                </p>
                 <div id="storageStatus" class="storage-status"></div>
+                <p class="data-guide">
+                    换手机 / 日常备份，<b>只用 JSON</b>（唯一能完整恢复的格式）。下面「导出表格 / 文档」里的 CSV、Markdown 仅供查看分析，<b>不能用于恢复</b>。
+                </p>
                 <div class="data-btns">
-                    <button onclick="exportJSON()">📦 导出 JSON（完整备份 / AI 分析）
-                        <span class="desc">包含全部原始数据，可重新导入恢复，也适合喂给 AI 做分析</span></button>
-                    <button onclick="shareBackup()">📤 分享备份到 iCloud / 微信…
-                        <span class="desc">调用系统分享，存到「文件」「备忘录」或发给自己，随时可导入恢复</span></button>
-                    <button onclick="exportCSV()">📊 导出 CSV（表格查看）
-                        <span class="desc">每日一行的打卡汇总，可用 Excel / Numbers 打开</span></button>
-                    <button onclick="exportWishesCSV()">🧊 导出想买清单 CSV
-                        <span class="desc">独立一张表：物品 / 金额 / 状态 / 理由 / 加入与决定日期</span></button>
-                    <label>📥 导入 JSON 备份
-                        <span class="desc">从之前导出的 JSON 文件恢复数据（会与现有数据按日期合并）</span>
+                    <button class="primary-btn" onclick="shareBackup()">📤 备份到 iCloud / 微信…（推荐）
+                        <span class="desc">调用系统分享，存到「文件」「备忘录」或发给自己，随时可恢复</span></button>
+                    <button onclick="exportJSON()">📦 导出 JSON 到文件
+                        <span class="desc">完整原始数据，也适合喂给 AI 分析</span></button>
+                    <label>📥 导入 JSON 恢复
+                        <span class="desc">从之前的 JSON 文件恢复数据（按日期合并）</span>
                         <input type="file" accept=".json" style="display:none" onchange="importJSON(this)">
                     </label>
-                    <button class="danger" onclick="clearAll()">🗑 清空全部数据
-                        <span class="desc">危险操作，清空前请先导出备份</span></button>
                 </div>
             </div>
 
             <div class="card">
-                <h2>📝 文字模块单独导出</h2>
-                <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">
-                    把复盘、日记、想法等大段文字单独导出，方便按主题备份或阅读。<b>MD</b> 排版美观适合阅读，<b>CSV</b> 适合表格/Excel。
-                </p>
+                <h2>📊 导出表格 / 文档 <span class="badge">查看分析用</span></h2>
+                <p class="data-guide">用 Excel 查看或阅读归档，<b>不能用于恢复数据</b>。</p>
+                <div class="data-btns">
+                    <button onclick="exportCSV()">📈 打卡汇总 CSV
+                        <span class="desc">每日一行，可用 Excel / Numbers 打开</span></button>
+                    <button onclick="exportWishesCSV()">🧊 想买清单 CSV
+                        <span class="desc">物品 / 金额 / 状态 / 理由 / 加入与决定日期</span></button>
+                </div>
+                <div class="module-sub">📝 文字模块（复盘 / 日记 / 想法…）· MD 适合阅读，CSV 适合表格</div>
                 <div id="moduleExport" class="module-export"></div>
+            </div>
+
+            <div class="card">
+                <h2>⚙️ 个性化设置</h2>
+                <div class="setting-block">
+                    <div class="setting-title">每日习惯 · 排序 / 显示 / 增删</div>
+                    <div id="habitManager"></div>
+                    <div class="habit-add-row">
+                        <input type="text" id="newHabitIcon" maxlength="2" placeholder="😀" class="habit-icon-input">
+                        <input type="text" id="newHabitName" placeholder="新习惯名称" class="habit-name-input">
+                        <button class="btn small" onclick="addCustomHabit()">添加</button>
+                    </div>
+                </div>
+                <div class="setting-block">
+                    <div class="setting-title">模块显示 · 关掉用不到的（如产后可关孕期模块）</div>
+                    <div id="moduleManager"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>⚠️ 危险区</h2>
+                <div class="data-btns">
+                    <button class="danger" onclick="clearAll()">🗑 清空全部数据
+                        <span class="desc">不可恢复，清空前请先备份</span></button>
+                </div>
             </div>
         </div>
     </main>

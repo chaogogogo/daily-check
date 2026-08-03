@@ -1,4 +1,4 @@
-const CACHE = "cc-gogogo-v28";
+const CACHE = "cc-gogogo-v31";
 const ASSETS = ["./daily-checkin.html", "./style.css", "./app.js", "./manifest.json", "./icon-180.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {

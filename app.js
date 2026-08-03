@@ -8,7 +8,7 @@ const HABITS = [
     { id: "exercise", icon: "🏃‍♀️", name: "锻炼" },
     { id: "sugar", icon: "🍬", name: "控糖" },
     { id: "supplement", icon: "💊", name: "补剂", auto: true },
-    { id: "water", icon: "💧", name: "2000毫升水", auto: true },
+    { id: "water", icon: "💧", name: "喝水", auto: true },
     { id: "skincare", icon: "🧴", name: "护肤" },
     { id: "diary", icon: "✍️", name: "日记" },
     { id: "review", icon: "🌙", name: "复盘", auto: true },
@@ -124,7 +124,7 @@ function day(d) {
     Object.keys(o.english.tasks).forEach(k => {
         const t = o.english.tasks[k];
         if (t && t.count == null) { t.count = t.done ? 1 : 0; delete t.done; }
-        if (t && t.count <= 0) delete o.english.tasks[k];
+        if (t && t.count <= 0 && !(t.notes && t.notes.length)) delete o.english.tasks[k]; // 有备注则保留
     });
     return o;
 }
@@ -142,7 +142,7 @@ function isHabitDone(id, d) {
     // english 兼容旧版手动打卡数据
     if (id === "english") return ENG_TASKS.some(t => isEngTaskDone(t.id, d)) || !!(o.habits.english && o.habits.english.done);
     if (id === "tech") return o.techLogs.length > 0 || !!(o.habits.tech && o.habits.tech.done);
-    if (id === "water") return waterTotal(d) >= 2000;
+    if (id === "water") return waterTotal(d) >= waterGoal();
     if (id === "supplement") {
         const list = store.settings.supplements;
         return list.length > 0 && list.every(n => o.supplements[n] && o.supplements[n].done);
@@ -150,14 +150,33 @@ function isHabitDone(id, d) {
     if (id === "review") return day(d).reviews.length > 0;
     return !!(o.habits[id] && o.habits[id].done);
 }
-function habitDoneCount(d) { return HABITS.filter(h => isHabitDone(h.id, d)).length; }
+function habitDoneCount(d) { return activeHabits().filter(h => isHabitDone(h.id, d)).length; }
+function allHabitDefs() { return [...HABITS, ...(store.settings.customHabits || [])]; }
+function activeHabits() {
+    const hidden = store.settings.habitHidden || {};
+    return orderedHabitDefs().filter(h => !hidden[h.id]);
+}
+function waterGoal() { return store.settings.waterGoal || 2000; }
+function waterCup() { return store.settings.waterCup || 200; }
 
 /* ==================== 日期切换 ==================== */
 function setDate(d) {
     if (!d) return;
     currentDate = d;
     document.getElementById("datePicker").value = d;
-    document.getElementById("notTodayTip").style.display = (d === todayStr()) ? "none" : "block";
+    const isToday = d === todayStr();
+    const tip = document.getElementById("notTodayTip");
+    const hint = document.getElementById("dateHint");
+    if (isToday) {
+        tip.style.display = "none";
+        if (hint) hint.style.display = "block";
+    } else {
+        const dt = new Date(d + "T12:00:00");
+        const wd = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
+        document.getElementById("notTodayText").textContent = `📝 正在补录 ${dt.getMonth() + 1}月${dt.getDate()}日（周${wd}）`;
+        tip.style.display = "block";
+        if (hint) hint.style.display = "none";
+    }
     renderAll();
 }
 function shiftDate(n) {
@@ -172,13 +191,13 @@ document.getElementById("tabs").addEventListener("click", e => {
     document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tab-page").forEach(p => p.classList.toggle("active", p.id === "page-" + btn.dataset.tab));
     if (btn.dataset.tab === "history") renderHistory();
-    if (btn.dataset.tab === "data") renderModuleExport();
+    if (btn.dataset.tab === "data") { renderModuleExport(); renderHabitManager(); renderModuleManager(); }
 });
 
 /* ==================== 习惯打卡 ==================== */
 function toggleHabit(id) {
-    const h = HABITS.find(x => x.id === id);
-    if (h.auto) return;
+    const h = allHabitDefs().find(x => x.id === id);
+    if (h && h.auto) return;
     const o = day();
     if (o.habits[id] && o.habits[id].done) delete o.habits[id];
     else o.habits[id] = { done: true, time: nowTime() };
@@ -186,7 +205,7 @@ function toggleHabit(id) {
 }
 function renderHabits() {
     const grid = document.getElementById("habitGrid");
-    grid.innerHTML = HABITS.map(h => {
+    grid.innerHTML = activeHabits().map(h => {
         const done = isHabitDone(h.id);
         let time = "";
         if (done) {
@@ -204,7 +223,7 @@ function renderHabits() {
       ${done ? `<span class="time">${time}</span><span class="check">✓</span>` : ""}
     </div>`;
     }).join("");
-    const n = habitDoneCount(), total = HABITS.length;
+    const n = habitDoneCount(), total = activeHabits().length;
     document.getElementById("habitProgress").textContent = `${n}/${total}`;
     document.getElementById("habitBar").style.width = (n / total * 100) + "%";
     const streak = overallStreak();
@@ -235,7 +254,11 @@ function logEngTask(id) {
     const rec = e.tasks[id] || { count: 0 };
     rec.count = (rec.count || 0) + 1;
     rec.time = nowTime();
+    const noteEl = document.getElementById("engNote_" + id);
+    const note = noteEl ? noteEl.value.trim() : "";
+    if (note) { rec.notes = rec.notes || []; rec.notes.push({ text: note, time: nowTime() }); }
     e.tasks[id] = rec;
+    if (noteEl) noteEl.value = "";
     save(); renderToday();
 }
 function decEngTask(id) {
@@ -243,9 +266,16 @@ function decEngTask(id) {
     const rec = e.tasks[id];
     if (!rec) return;
     rec.count = (rec.count || 0) - 1;
-    if (rec.count <= 0) delete e.tasks[id];
-    else rec.time = nowTime();
+    if (rec.count <= 0) {
+        rec.count = 0;
+        if (!rec.notes || !rec.notes.length) delete e.tasks[id]; // 无备注才移除
+    } else rec.time = nowTime();
     save(); renderToday();
+}
+function delEngTaskNote(id, i) {
+    const rec = day().english.tasks[id];
+    if (!rec || !rec.notes) return;
+    removeWithUndo(rec.notes, i, "英语备注", renderToday);
 }
 function addEngPhrase() {
     const ta = document.getElementById("engPhrase");
@@ -286,12 +316,20 @@ function renderEnglish() {
         const rec = e.tasks[t.id];
         const count = rec ? rec.count : 0;
         const done = count > 0;
-        return `<div class="eng-task ${done ? "done" : ""}" onclick="logEngTask('${t.id}')">
+        const notes = (rec && rec.notes) || [];
+        return `<div class="eng-task-wrap">
+      <div class="eng-task ${done ? "done" : ""}" onclick="logEngTask('${t.id}')">
       <span class="icon">${t.icon}</span>
       <span class="body"><div class="name">${done ? "✓ " : ""}${t.name}${count > 1 ? ` <span class="count-badge">×${count}</span>` : ""}</div><div class="desc">${t.desc}</div></span>
       ${done ? `<span class="time">${rec.time}</span>` : ""}
       ${done ? `<button class="eng-dec" onclick="event.stopPropagation();decEngTask('${t.id}')">−</button>` : ""}
       ${t.link ? `<a class="go" href="${t.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${t.linkName}</a>` : ""}
+    </div>
+      <div class="eng-note-row">
+        <input id="engNote_${t.id}" type="text" class="eng-note-input" placeholder="学了啥？可选，填了会记在下面" onkeydown="if(event.key==='Enter'){event.preventDefault();logEngTask('${t.id}')}">
+        <button class="btn small" onclick="logEngTask('${t.id}')">打卡</button>
+      </div>
+      ${notes.length ? `<div class="eng-note-list">${notes.map((n, i) => `<div class="eng-note-item"><span class="eng-note-text">${escMultiline(n.text)}</span><span class="eng-note-time">${n.time}</span><button class="del" onclick="delEngTaskNote('${t.id}',${i})">✕</button></div>`).join("")}</div>` : ""}
     </div>`;
     }).join("");
     // 汇总全部知识点（含当天，近到远）
@@ -345,11 +383,20 @@ function addWater(amount) {
 }
 function renderWater() {
     const total = waterTotal();
-    const cups = Math.min(10, Math.floor(total / 200));
+    const goal = waterGoal(), cup = waterCup();
+    const cupCount = Math.max(1, Math.round(goal / cup));
+    const filled = Math.min(cupCount, Math.floor(total / cup));
     document.getElementById("waterCups").innerHTML =
-        Array.from({ length: 10 }, (_, i) => `<div class="cup ${i < cups ? "full" : ""}" onclick="addWater(200)">${i < cups ? "💧" : "+"}</div>`).join("");
+        Array.from({ length: cupCount }, (_, i) => `<div class="cup ${i < filled ? "full" : ""}" onclick="addWater(${cup})">${i < filled ? "💧" : "+"}</div>`).join("");
     document.getElementById("waterTotal").textContent = total;
+    const badge = document.getElementById("waterGoalBadge");
+    if (badge) badge.textContent = `目标 ${goal}ml`;
+    const gi = document.getElementById("waterGoalInput"); if (gi && document.activeElement !== gi) gi.value = goal;
+    const ci = document.getElementById("waterCupInput"); if (ci && document.activeElement !== ci) ci.value = cup;
+    const cupBtn = document.getElementById("waterCupBtn"); if (cupBtn) { cupBtn.textContent = `+${cup}ml`; cupBtn.setAttribute("onclick", `addWater(${cup})`); }
 }
+function setWaterGoal(v) { const n = parseInt(v, 10); if (n > 0) { store.settings.waterGoal = n; save(); renderToday(); } }
+function setWaterCup(v) { const n = parseInt(v, 10); if (n > 0) { store.settings.waterCup = n; save(); renderToday(); } }
 
 /* ==================== 补剂 ==================== */
 function toggleSupp(name) {
@@ -386,7 +433,11 @@ function collectTimeline(d) {
     o.waterLogs.forEach(l => ev.push({ time: l.time, label: `💧 喝水 ${l.amount}ml`, ref: l }));
     ENG_TASKS.forEach(t => {
         if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${trunc(p.text, 18)}`, ref: p }); });
-        else if (o.english.tasks[t.id] && o.english.tasks[t.id].count > 0) ev.push({ time: o.english.tasks[t.id].time, label: `${t.icon} 英语：${t.name}${o.english.tasks[t.id].count > 1 ? ` ×${o.english.tasks[t.id].count}` : ""}`, ref: o.english.tasks[t.id] });
+        else {
+            const rec = o.english.tasks[t.id];
+            if (rec && rec.count > 0) ev.push({ time: rec.time, label: `${t.icon} 英语：${t.name}${rec.count > 1 ? ` ×${rec.count}` : ""}`, ref: rec });
+            (rec && rec.notes || []).forEach(n => { if (n.time) ev.push({ time: n.time, label: `✍️ 英语[${t.name}]：${trunc(n.text, 18)}`, ref: n }); });
+        }
     });
     o.tasks.forEach(t => { if (t.done && t.time) ev.push({ time: t.time, label: `📌 完成任务：${trunc(t.text, 18)}`, ref: t }); });
     Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}`, ref: s }); });
@@ -466,6 +517,88 @@ function applyCollapsedState() {
     });
 }
 
+/* ==================== 个性化：习惯 / 模块 ==================== */
+const OPTIONAL_MODULES = [
+    { id: "symptoms", name: "🤕 孕期反应" },
+    { id: "pregDiary", name: "🤰 孕期日记" },
+    { id: "media", name: "📣 自媒体运营" },
+    { id: "snack", name: "🍎 加餐" },
+    { id: "bowel", name: "💩 排便记录" },
+];
+function orderedHabitDefs() {
+    const order = store.settings.habitOrder || [];
+    const byId = {};
+    allHabitDefs().forEach(h => byId[h.id] = h);
+    const list = [];
+    order.forEach(id => { if (byId[id]) { list.push(byId[id]); delete byId[id]; } });
+    allHabitDefs().forEach(h => { if (byId[h.id]) list.push(h); });
+    return list;
+}
+function renderHabitManager() {
+    const el = document.getElementById("habitManager"); if (!el) return;
+    const hidden = store.settings.habitHidden || {};
+    const list = orderedHabitDefs();
+    const customIds = new Set((store.settings.customHabits || []).map(h => h.id));
+    el.innerHTML = list.map((h, i) => `<div class="habit-mng-row">
+      <span class="hm-name">${h.icon} ${h.name}${customIds.has(h.id) ? " <em>自定义</em>" : ""}</span>
+      <span class="hm-actions">
+        <button onclick="moveHabit('${h.id}',-1)" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button onclick="moveHabit('${h.id}',1)" ${i === list.length - 1 ? "disabled" : ""}>↓</button>
+        <label class="hm-show"><input type="checkbox" ${hidden[h.id] ? "" : "checked"} onchange="toggleHabitHidden('${h.id}',this.checked)"> 显示</label>
+        ${customIds.has(h.id) ? `<button class="hm-del" onclick="deleteCustomHabit('${h.id}')">✕</button>` : ""}
+      </span>
+    </div>`).join("");
+}
+function moveHabit(id, dir) {
+    const list = orderedHabitDefs().map(h => h.id);
+    const i = list.indexOf(id); if (i < 0) return;
+    const j = i + dir; if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    store.settings.habitOrder = list;
+    save(); renderHabitManager(); renderToday();
+}
+function toggleHabitHidden(id, show) {
+    store.settings.habitHidden = store.settings.habitHidden || {};
+    if (show) delete store.settings.habitHidden[id]; else store.settings.habitHidden[id] = true;
+    save(); renderHabitManager(); renderToday();
+}
+function addCustomHabit() {
+    const iconEl = document.getElementById("newHabitIcon");
+    const nameEl = document.getElementById("newHabitName");
+    const name = nameEl.value.trim(); if (!name) { alert("请输入习惯名称"); return; }
+    const icon = iconEl.value.trim() || "⭐";
+    const id = "custom_" + Date.now();
+    store.settings.customHabits = store.settings.customHabits || [];
+    store.settings.customHabits.push({ id, icon, name });
+    store.settings.habitOrder = orderedHabitDefs().map(h => h.id).concat(id);
+    iconEl.value = ""; nameEl.value = "";
+    save(); renderHabitManager(); renderToday();
+}
+function deleteCustomHabit(id) {
+    if (!confirm("删除这个自定义习惯？历史打卡记录会保留但不再显示。")) return;
+    store.settings.customHabits = (store.settings.customHabits || []).filter(h => h.id !== id);
+    if (store.settings.habitOrder) store.settings.habitOrder = store.settings.habitOrder.filter(x => x !== id);
+    if (store.settings.habitHidden) delete store.settings.habitHidden[id];
+    save(); renderHabitManager(); renderToday();
+}
+function renderModuleManager() {
+    const el = document.getElementById("moduleManager"); if (!el) return;
+    const hide = store.settings.hideModules || {};
+    el.innerHTML = OPTIONAL_MODULES.map(m =>
+        `<label class="toggle-row"><span>${m.name}</span><input type="checkbox" ${hide[m.id] ? "" : "checked"} onchange="toggleModule('${m.id}',this.checked)"></label>`).join("");
+}
+function toggleModule(id, show) {
+    store.settings.hideModules = store.settings.hideModules || {};
+    if (show) delete store.settings.hideModules[id]; else store.settings.hideModules[id] = true;
+    save(); applyModuleVisibility();
+}
+function applyModuleVisibility() {
+    const hide = store.settings.hideModules || {};
+    OPTIONAL_MODULES.forEach(m => {
+        document.querySelectorAll(`[data-module="${m.id}"]`).forEach(card => { card.style.display = hide[m.id] ? "none" : ""; });
+    });
+}
+
 /* ==================== 复盘 ==================== */
 function addReview() {
     const ta = document.getElementById("reviewInput");
@@ -489,7 +622,7 @@ function flash(id, msg) {
 /* ==================== 今日汇总 ==================== */
 function buildSummaryText(d) {
     d = d || currentDate; const o = day(d);
-    const lines = [`🌸 ${d} 今日汇总`, `✅ 打卡 ${habitDoneCount(d)}/${HABITS.length} · 💧 ${waterTotal(d)}ml`];
+    const lines = [`🌸 ${d} 今日汇总`, `✅ 打卡 ${habitDoneCount(d)}/${activeHabits().length} · 💧 ${waterTotal(d)}ml`];
     const push = (title, arr) => { if (arr.length) { lines.push("", title); arr.forEach(x => lines.push(`· ${x.text}`)); } };
     push("🌙 复盘", o.reviews);
     push("💛 感恩", o.gratitude);
@@ -503,7 +636,7 @@ function renderSummary() {
         : "";
     const body = sec("🌙", "复盘", o.reviews) + sec("💛", "感恩", o.gratitude) + sec("🤰", "孕期日记", o.pregDiaries);
     document.getElementById("dailySummary").innerHTML =
-        `<div class="sum-top">✅ 打卡 ${habitDoneCount()}/${HABITS.length} · 💧 ${waterTotal()}ml</div>`
+        `<div class="sum-top">✅ 打卡 ${habitDoneCount()}/${activeHabits().length} · 💧 ${waterTotal()}ml</div>`
         + (body || `<div class="empty-tip">写下复盘、感恩、日记后，这里会自动汇总，方便一天结束时回顾 ✨</div>`);
 }
 function copySummary() {
@@ -1014,7 +1147,7 @@ function renderCalendar() {
         let dot = "";
         if (store.days[ds]) {
             const n = habitDoneCount(ds);
-            const p = n === 0 ? 0 : n <= 3 ? 1 : n < HABITS.length ? 2 : 3;
+            const p = n === 0 ? 0 : n <= 3 ? 1 : n < activeHabits().length ? 2 : 3;
             if (n > 0) dot = `<div class="cal-dot p${p}"></div>`;
             else dot = `<div class="cal-dot"></div>`;
         }
@@ -1091,6 +1224,7 @@ function collectSearchItems() {
         (o.pregDiaries || []).forEach(x => items.push({ d, time: x.time, type: "孕期日记", text: x.text }));
         (o.exercises || []).forEach(x => items.push({ d, time: x.time, type: "锻炼", text: x.text }));
         if (o.english && o.english.phrases) o.english.phrases.forEach(x => items.push({ d, time: x.time, type: "英语知识点", text: x.text }));
+        if (o.english && o.english.tasks) Object.entries(o.english.tasks).forEach(([id, rec]) => { const t = ENG_TASKS.find(x => x.id === id); (rec.notes || []).forEach(n => items.push({ d, time: n.time, type: "英语·" + (t ? t.name : id), text: n.text })); });
         (o.tasks || []).forEach(x => items.push({ d, time: x.time, type: "任务", text: x.text }));
         (o.expenses || []).forEach(x => items.push({ d, time: x.time, type: "开支·" + x.cat, text: (x.note || "") + " ¥" + x.amount }));
         (o.wishes || []).forEach(x => items.push({ d, time: x.time, type: "想买", text: x.item + (x.reason ? " — " + x.reason : "") }));
@@ -1110,9 +1244,23 @@ function renderSearch() {
     if (!q) { el.innerHTML = ""; return; }
     const hits = collectSearchItems().filter(x => (x.text || "").toLowerCase().includes(q) || (x.type || "").toLowerCase().includes(q)).slice(0, 80);
     el.innerHTML = hits.length
-        ? hits.map(x => `<div class="entry"><span class="tag">${esc(x.type)}</span>${escMultiline(x.text)}
-      <div class="meta"><span>${x.d} ${x.time || ""}</span></div></div>`).join("")
+        ? hits.map(x => `<div class="entry search-hit" onclick="jumpToRecord('${x.d}','${typeToTab(x.type)}')"><span class="tag">${esc(x.type)}</span>${escMultiline(x.text)}
+      <div class="meta"><span>${x.d} ${x.time || ""} · 点击查看 ›</span></div></div>`).join("")
         : `<div class="empty-tip">没有找到包含「${esc(q)}」的记录</div>`;
+}
+function typeToTab(type) {
+    type = type || "";
+    if (type.startsWith("想法") || type.startsWith("知识") || type.startsWith("运营")) return "thoughts";
+    if (type === "技术") return "tech";
+    if (type.startsWith("英语")) return "english";
+    if (type === "复盘" || type === "感恩" || type === "任务") return "today";
+    if (type.startsWith("开支") || type === "想买") return "wealth";
+    return "pregnancy"; // 餐食/加餐/排便/体重/睡眠/孕期反应/孕期日记/锻炼/补剂
+}
+function jumpToRecord(d, tab) {
+    setDate(d);
+    const btn = document.querySelector('nav.tabs button[data-tab="' + tab + '"]');
+    if (btn) btn.click();
 }
 
 /* ==================== 打卡汇总 ==================== */
@@ -1167,7 +1315,7 @@ function buildWeeklyText() {
     const ratingLabel = { good: "控糖良好", mid: "一般", bad: "超标" };
     // 打卡
     const counts = days.map(d => habitDoneCount(d));
-    lines.push(`✅ 打卡：日均 ${(counts.reduce((a, b) => a + b, 0) / n).toFixed(1)}/${HABITS.length}，全勤 ${counts.filter(c => c === HABITS.length).length} 天`);
+    lines.push(`✅ 打卡：日均 ${(counts.reduce((a, b) => a + b, 0) / n).toFixed(1)}/${activeHabits().length}，全勤 ${counts.filter(c => c === activeHabits().length).length} 天`);
     // 体重
     const ws = days.map(d => store.days[d] && store.days[d].weight ? store.days[d].weight.value : null).filter(v => v != null);
     if (ws.length) lines.push(`⚖️ 体重：${ws[0]} → ${ws[ws.length - 1]} kg（${(ws[ws.length - 1] - ws[0]) >= 0 ? "+" : ""}${(ws[ws.length - 1] - ws[0]).toFixed(1)}）`);
@@ -1183,7 +1331,7 @@ function buildWeeklyText() {
     // 喝水
     const waters = days.map(d => waterTotal(d));
     const waterDays = waters.filter(v => v > 0);
-    if (waterDays.length) lines.push(`💧 喝水：日均 ${Math.round(waterDays.reduce((a, b) => a + b, 0) / waterDays.length)}ml · 达标(≥2000ml) ${waters.filter(v => v >= 2000).length}/${n} 天`);
+    if (waterDays.length) lines.push(`💧 喝水：日均 ${Math.round(waterDays.reduce((a, b) => a + b, 0) / waterDays.length)}ml · 达标(≥${waterGoal()}ml) ${waters.filter(v => v >= waterGoal()).length}/${n} 天`);
     // 睡眠 / 排便 / 反应
     const sleeps = days.map(d => store.days[d] && store.days[d].sleep ? store.days[d].sleep.quality : null).filter(Boolean);
     if (sleeps.length) {
@@ -1252,7 +1400,7 @@ function renderWeekly() {
     const row = (label, cells) => `<div class="week-label">${label}</div>` + cells.join("");
     const cell = (color, title) => `<div class="week-cell" title="${title}" style="background:${color}"></div>`;
     // 每个习惯一行
-    HABITS.forEach(h => {
+    activeHabits().forEach(h => {
         html += row(`${h.icon} ${h.name}`, days.map(d =>
             cell(isHabitDone(h.id, d) ? DONE : NONE, `${d} ${h.name}${isHabitDone(h.id, d) ? " ✓" : ""}`)));
     });
@@ -1294,7 +1442,7 @@ function renderWeekly() {
     // 底部关键数字
     const counts = days.map(d => habitDoneCount(d));
     const ws = days.map(d => store.days[d] && store.days[d].weight ? store.days[d].weight.value : null).filter(v => v != null);
-    html += `<div class="sum-top" style="margin-top:10px">✅ 日均 ${(counts.reduce((a, b) => a + b, 0) / n).toFixed(1)}/${HABITS.length} · 全勤 ${counts.filter(c => c === HABITS.length).length} 天${ws.length ? ` · ⚖️ ${ws[0]} → ${ws[ws.length - 1]} kg` : ""}</div>`;
+    html += `<div class="sum-top" style="margin-top:10px">✅ 日均 ${(counts.reduce((a, b) => a + b, 0) / n).toFixed(1)}/${activeHabits().length} · 全勤 ${counts.filter(c => c === activeHabits().length).length} 天${ws.length ? ` · ⚖️ ${ws[0]} → ${ws[ws.length - 1]} kg` : ""}</div>`;
     el.innerHTML = html;
 }
 function copyWeekly() {
@@ -1421,7 +1569,7 @@ async function shareBackup() {
 }
 function exportCSV() {
     const ratingLabel = { good: "控糖良好", mid: "一般", bad: "超标" };
-    const head = ["日期", ...HABITS.map(h => h.name), "英语微任务", "英语知识点", "饮水(ml)",
+    const head = ["日期", ...activeHabits().map(h => h.name), "英语微任务", "英语知识点", "饮水(ml)",
         ...MEALS.flatMap(m => [m.name, m.name + "控糖评估"]),
         "加餐", "锻炼", "排便", "体重(kg)", "睡眠", "孕期反应", "技术学习", "临时任务", "复盘", "感恩", "孕期日记", "运营", "想法碎片", "知识收藏", "开支", "想买清单", "健康明细(喝水/控糖/运动/睡眠/排便/体重)"];
     const rows = [head];
@@ -1430,7 +1578,7 @@ function exportCSV() {
         const bowelLabel = { good: "健康", mid: "一般", bad: "不佳" };
         rows.push([
             d,
-            ...HABITS.map(h => isHabitDone(h.id, d) ? "✓" : ""),
+            ...activeHabits().map(h => isHabitDone(h.id, d) ? "✓" : ""),
             ENG_TASKS.filter(t => isEngTaskDone(t.id, d)).map(t => t.name).join(" | "),
             o.english.phrases.map(p => p.text).join(" | "),
             waterTotal(d),
@@ -1588,6 +1736,7 @@ window.addEventListener("focus", checkDayRollover);
     renderThoughtTagRow();
     renderAll();
     applyCollapsedState();
+    applyModuleVisibility();
     ensurePersistentStorage();
     registerServiceWorker();
 })();
