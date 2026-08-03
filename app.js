@@ -164,20 +164,29 @@ function setDate(d) {
     if (!d) return;
     currentDate = d;
     document.getElementById("datePicker").value = d;
-    const isToday = d === todayStr();
     const tip = document.getElementById("notTodayTip");
-    const hint = document.getElementById("dateHint");
-    if (isToday) {
+    if (d === todayStr()) {
         tip.style.display = "none";
-        if (hint) hint.style.display = "block";
     } else {
         const dt = new Date(d + "T12:00:00");
         const wd = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
         document.getElementById("notTodayText").textContent = `📝 正在补录 ${dt.getMonth() + 1}月${dt.getDate()}日（周${wd}）`;
         tip.style.display = "block";
-        if (hint) hint.style.display = "none";
     }
     renderAll();
+}
+function renderAppTitle() {
+    const t = store.settings.appTitle || "💐 CC GOGOGO";
+    const el = document.getElementById("appTitle");
+    if (el) el.textContent = t;
+    document.title = t.replace(/^[^\w\u4e00-\u9fa5]+/, "").trim() || "CC GOGOGO";
+}
+function editTitle() {
+    const cur = store.settings.appTitle || "💐 CC GOGOGO";
+    const v = prompt("自定义标题（可含 emoji）：", cur);
+    if (v === null) return;
+    store.settings.appTitle = v.trim() || "💐 CC GOGOGO";
+    save(); renderAppTitle();
 }
 function shiftDate(n) {
     const d = new Date(currentDate + "T12:00:00");
@@ -339,11 +348,11 @@ function renderEnglish() {
         if (en && en.phrases) en.phrases.forEach((p, i) => items.push({ d, i, p }));
     });
     document.getElementById("engPhraseCount").textContent = items.length ? `已积累 ${items.length} 条` : "";
-    document.getElementById("engPhraseList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.p.text)}
+    renderCollapsibleList("engPhraseList", "engPhrase", "知识点", items.length,
+        items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.p.text)}
 <div class="meta"><span>${x.d} ${x.p.time}</span></div>
-<button class="del" onclick="delEngPhrase('${x.d}',${x.i})">✕</button></div>`).join("")
-        : `<div class="empty-tip">还没有知识点，听到好表达随手记一条吧 ✨</div>`;
+<button class="del" onclick="delEngPhrase('${x.d}',${x.i})">✕</button></div>`).join(""),
+        `<div class="empty-tip">还没有知识点，听到好表达随手记一条吧 ✨</div>`);
 }
 
 /* ==================== 临时任务 ==================== */
@@ -500,6 +509,25 @@ function showUndo(msg, restore) {
     undoTimer = setTimeout(hideUndo, 5000);
 }
 function hideUndo() { clearTimeout(undoTimer); const bar = document.getElementById("undoBar"); if (bar) bar.style.display = "none"; }
+
+/* ==================== 列表折叠（长列表一键收起/展开） ==================== */
+function isListCollapsed(key) { return !!(store.settings.listCollapsed && store.settings.listCollapsed[key]); }
+function toggleList(key) {
+    store.settings.listCollapsed = store.settings.listCollapsed || {};
+    store.settings.listCollapsed[key] = !store.settings.listCollapsed[key];
+    save();
+    ({ engPhrase: renderEnglish, thoughts: renderThoughts, knowledge: renderKnowledge, media: renderMedia, tech: renderTech }[key] || renderAll)();
+}
+function renderCollapsibleList(elId, key, label, count, itemsHtml, emptyHtml) {
+    const el = document.getElementById(elId); if (!el) return;
+    if (!count) { el.innerHTML = emptyHtml; return; }
+    const collapsed = isListCollapsed(key);
+    const showToggle = count > 3 || collapsed; // 内容多时才出现收起入口
+    const bar = showToggle
+        ? `<div class="list-toggle" onclick="toggleList('${key}')"><span>${label} ${count} 条</span><span class="lt-caret">${collapsed ? "展开 ▸" : "收起 ▾"}</span></div>`
+        : "";
+    el.innerHTML = bar + (collapsed ? "" : itemsHtml);
+}
 
 /* ==================== 卡片折叠 ==================== */
 function toggleCard(h2) {
@@ -874,11 +902,11 @@ function renderTech() {
     Object.keys(store.days).sort().reverse().forEach(d => {
         (store.days[d].techLogs || []).forEach((t, i) => items.push({ d, i, t }));
     });
-    document.getElementById("techList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.t.text)}
+    document.getElementById("techList") && renderCollapsibleList("techList", "tech", "技术笔记", items.length,
+        items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.t.text)}
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
-<button class="del" onclick="delTech('${x.d}',${x.i})">✕</button></div>`).join("")
-        : `<div class="empty-tip">今天学了什么？随手记一条，同时完成"技术学习"打卡 💪</div>`;
+<button class="del" onclick="delTech('${x.d}',${x.i})">✕</button></div>`).join(""),
+        `<div class="empty-tip">今天学了什么？随手记一条，同时完成"技术学习"打卡 💪</div>`);
 }
 
 /* ==================== 孕期日记 ==================== */        function addPregDiary() {
@@ -920,11 +948,11 @@ function renderMedia() {
     document.getElementById("mediaFilterRow").innerHTML = tags.map(t =>
         `<button class="filter-chip ${mediaFilter === t ? "sel" : ""}" onclick="setMediaFilter('${t.replace(/'/g, "\\'")}')">${t} (${t === "全部" ? all.length : all.filter(x => x.m.tag === t).length})</button>`).join("");
     const items = mediaFilter === "全部" ? all : all.filter(x => x.m.tag === mediaFilter);
-    document.getElementById("mediaList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.m.tag}</span>${escMultiline(x.m.text)}
+    renderCollapsibleList("mediaList", "media", "运营", items.length,
+        items.map(x => `<div class="entry"><span class="tag">${x.m.tag}</span>${escMultiline(x.m.text)}
 <div class="meta"><span>${x.d} ${x.m.time}</span></div>
-<button class="del" onclick="delMedia('${x.d}',${x.i})">✕</button></div>`).join("")
-        : `<div class="empty-tip">还没有运营记录，发布一条 / 整理素材就记一条吧</div>`;
+<button class="del" onclick="delMedia('${x.d}',${x.i})">✕</button></div>`).join(""),
+        `<div class="empty-tip">还没有运营记录，发布一条 / 整理素材就记一条吧</div>`);
 }
 
 /* ==================== 想法碎片 ==================== */
@@ -966,11 +994,11 @@ function renderThoughts() {
     document.getElementById("thoughtFilterRow").innerHTML = tags.length > 1 ? tags.map(t =>
         `<button class="filter-chip ${thoughtFilter === t ? "sel" : ""}" onclick="setThoughtFilter('${t.replace(/'/g, "\\'")}')">${esc(t)} (${t === "全部" ? all.length : all.filter(x => x.t.tag === t).length})</button>`).join("") : "";
     const items = thoughtFilter === "全部" ? all : all.filter(x => x.t.tag === thoughtFilter);
-    document.getElementById("thoughtList").innerHTML = items.length
-        ? items.map(x => `<div class="entry">${x.t.tag ? `<span class="tag">${esc(x.t.tag)}</span>` : ""}${escMultiline(x.t.text)}
+    renderCollapsibleList("thoughtList", "thoughts", "想法", items.length,
+        items.map(x => `<div class="entry">${x.t.tag ? `<span class="tag">${esc(x.t.tag)}</span>` : ""}${escMultiline(x.t.text)}
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
-<button class="del" onclick="delThought('${x.d}',${x.i})">✕</button></div>`).join("")
-        : `<div class="empty-tip">还没有想法碎片，随手记一条吧</div>`;
+<button class="del" onclick="delThought('${x.d}',${x.i})">✕</button></div>`).join(""),
+        `<div class="empty-tip">还没有想法碎片，随手记一条吧</div>`);
 }
 
 /* ==================== 有意思的知识 ==================== */
@@ -992,11 +1020,11 @@ function renderKnowledge() {
     Object.keys(store.days).sort().reverse().forEach(d => {
         (store.days[d].knowledge || []).forEach((k, i) => items.push({ d, i, k }));
     });
-    document.getElementById("knowledgeList").innerHTML = items.length
-        ? items.map(x => `<div class="entry"><span class="tag">${x.k.type}</span>${escMultiline(x.k.text)}
+    renderCollapsibleList("knowledgeList", "knowledge", "知识", items.length,
+        items.map(x => `<div class="entry"><span class="tag">${x.k.type}</span>${escMultiline(x.k.text)}
 <div class="meta"><span>${x.d} ${x.k.time}</span></div>
-<button class="del" onclick="delKnowledge('${x.d}',${x.i})">✕</button></div>`).join("")
-        : `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`;
+<button class="del" onclick="delKnowledge('${x.d}',${x.i})">✕</button></div>`).join(""),
+        `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`);
 }
 
 /* ==================== 丰盛（开支 / 冷静购物） ==================== */
@@ -1734,6 +1762,7 @@ window.addEventListener("focus", checkDayRollover);
     selectKType(document.querySelector('#knowledgeTypeRow button[data-ktype="播客"]'));
     selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
     renderThoughtTagRow();
+    renderAppTitle();
     renderAll();
     applyCollapsedState();
     applyModuleVisibility();

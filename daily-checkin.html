@@ -27,13 +27,12 @@
     </div>
 
     <header>
-        <h1>💐 CC GOGOGO</h1>
+        <h1 id="appTitle" title="点击修改标题" onclick="editTitle()">💐 CC GOGOGO</h1>
         <div class="date-nav">
             <button onclick="shiftDate(-1)" title="前一天（补录）">‹</button>
             <input type="date" id="datePicker" onchange="setDate(this.value)">
             <button onclick="shiftDate(1)" title="后一天">›</button>
         </div>
-        <div class="date-hint" id="dateHint">← → 或点日期，可切到其他日期补录</div>
         <div class="not-today-tip" id="notTodayTip" style="display:none">
             <span id="notTodayText"></span> · <a onclick="setDate(todayStr())">回到今天</a>
         </div>

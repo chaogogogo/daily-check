@@ -151,6 +151,10 @@ header h1 {
     opacity: .75;
 }
 
+#appTitle {
+    cursor: pointer;
+}
+
 nav.tabs {
     display: flex;
     background: var(--card);
@@ -998,6 +1002,26 @@ table.stat-table th {
 .search-hit {
     cursor: pointer;
     transition: background .12s;
+}
+
+.list-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: #faf6f1;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text-light);
+    cursor: pointer;
+    user-select: none;
+}
+
+.list-toggle .lt-caret {
+    color: var(--primary-dark);
+    font-weight: 600;
 }
 
 .search-hit:active {
