@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#355a4f">
     <link rel="apple-touch-icon" href="icon-180.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=61">
+    <link rel="stylesheet" href="style.css?v=63">
 </head>
 
 <body>
@@ -103,8 +103,8 @@
             </div>
 
             <div class="card collapsible" data-collapse="timeline">
-                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="clock"></span>今日时间轴 <span
-                        class="badge">点时间可改成实际时刻</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="clock"></span>最近动态 <span class="badge">最新 3
+                        条</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="timeline" id="timeline"></div>
             </div>
         </div>
@@ -195,17 +195,6 @@
 
         <!-- ============ 记录（统一时间轴） ============ -->
         <div class="tab-page" id="page-record">
-            <div class="card">
-                <h2><span class="tico" data-ic="list"></span>记录时间轴 <span class="badge" id="recordDateBadge">今天</span>
-                </h2>
-                <div class="rec-search">
-                    <span class="rec-search-ic" data-ic="search"></span>
-                    <input type="text" id="recordSearch" placeholder="搜索这一天的记录…" oninput="renderRecordTimeline()"
-                        aria-label="搜索记录">
-                </div>
-                <div class="chip-row rec-filter" id="recordFilterRow"></div>
-                <div class="timeline" id="recordTimeline"></div>
-            </div>
             <button class="rec-health-entry" onclick="switchTab('health')">
                 <span class="rhe-ic" data-ic="activity"></span>
                 <span class="rhe-body"><b>健康打卡</b><span>饮食 · 饮水 · 睡眠 · 体重 · 补剂 · 锻炼 · 排便 · 孕期</span></span>
@@ -216,6 +205,17 @@
                 <span class="rhe-body"><b>丰盛记录</b><span>今日开支 · 想买清单 · 丰盛汇总</span></span>
                 <span class="rhe-arrow" data-ic="chevron-right"></span>
             </button>
+            <div class="card collapsible" data-collapse="r-timeline">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="list"></span>记录时间轴 <span class="badge"
+                        id="recordDateBadge">今天</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div class="rec-search">
+                    <span class="rec-search-ic" data-ic="search"></span>
+                    <input type="text" id="recordSearch" placeholder="搜索这一天的记录…" oninput="renderRecordTimeline()"
+                        aria-label="搜索记录">
+                </div>
+                <div class="chip-row rec-filter" id="recordFilterRow"></div>
+                <div class="timeline" id="recordTimeline"></div>
+            </div>
         </div>
 
         <!-- ============ 健康 ============ -->
@@ -564,8 +564,9 @@
             <button class="back-link" onclick="switchTab('settings')" aria-label="返回我的"><span
                     data-ic="chevron-left"></span></button>
             <div class="card collapsible" data-collapse="c-habits">
-                <h2 id="personalizeHabits" onclick="toggleCard(this)"><span class="tico" data-ic="plan"></span>习惯管理 <span
-                        class="badge">排序 / 显示 / 增删</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <h2 id="personalizeHabits" onclick="toggleCard(this)"><span class="tico" data-ic="plan"></span>习惯管理
+                    <span class="badge">排序 / 显示 / 增删</span><span class="chevron-icon" data-ic="chevron-down"></span>
+                </h2>
                 <div id="habitManager"></div>
                 <div class="habit-add-row">
                     <input type="text" id="newHabitIcon" maxlength="2" placeholder="😀" class="habit-icon-input">
@@ -645,7 +646,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=61"></script>
+    <script src="app.js?v=63"></script>
 </body>
 
 </html>

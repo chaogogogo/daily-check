@@ -70,9 +70,8 @@ let currentDate = todayStr();
 let calYear, calMonth; // 日历视图
 let kType = "播客";
 // 首页折叠状态（Phase 2）
-let planHideDone = false;     // 每日计划：是否隐藏已完成
+let planHideDone = (store.settings && store.settings.planHideDone !== undefined) ? !!store.settings.planHideDone : true; // 每日计划：是否隐藏已完成（默认折叠已完成）
 let tasksShowDone = false;    // 临时任务：是否展开已完成分组
-let timelineShowAll = false;  // 今日时间轴：是否展开全部
 
 function loadStore() {
     let s;
@@ -450,7 +449,7 @@ function renderHabits() {
     const habits = activeHabits().map(h => ({ h, done: isHabitDone(h.id) }));
     habits.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
     const visible = planHideDone ? habits.filter(x => !x.done) : habits;
-    grid.innerHTML = visible.map(({ h, done }) => {
+    grid.innerHTML = visible.length ? visible.map(({ h, done }) => {
         let time = "";
         if (done) {
             const o = day();
@@ -461,12 +460,15 @@ function renderHabits() {
             else if (h.id === "tech") { const ts = o.techLogs.map(t => t.time).concat(o.habits.tech && o.habits.tech.done ? [o.habits.tech.time] : []).filter(Boolean).sort(); time = ts[ts.length - 1] || ""; }
             else time = o.habits[h.id].time || "";
         }
-        return `<button type="button" class="habit-item ${done ? "done" : ""} ${h.auto ? "auto" : ""}" onclick="toggleHabit('${h.id}')" title="${h.auto ? "该项自动完成" : "点击打卡"}">
+                const meta = h.auto ? autoHabitProgressText(h.id) : (done ? (time || "已完成") : "");
+        const onClick = h.auto ? `openAutoHabit('${h.id}')` : `toggleHabit('${h.id}')`;
+                const metaHtml = meta ? `<span class="meta">${meta}</span>` : "";
+        return `<button type="button" class="habit-item ${done ? "done" : ""} ${h.auto ? "auto" : ""}" onclick="${onClick}" title="${h.auto ? "查看该自动项详情" : "点击打卡"}">
       <span class="habit-ic">${HABIT_ICONS[h.id] ? icon(HABIT_ICONS[h.id]) : h.icon}</span>
-      <span class="habit-info"><span class="name">${h.name}</span><span class="meta">${done ? ((time || "已完成") + (h.auto ? " · 自动" : "")) : (h.auto ? "自动" : "待完成")}</span></span>
+                        <span class="habit-info"><span class="name">${h.name}</span>${metaHtml}</span>
       <span class="habit-check">${done ? icon("check") : ""}</span>
     </button>`;
-    }).join("");
+    }).join("") : `<div class="empty-tip">今天都完成啦，点击右下角可展开已完成 ✅</div>`;
     const n = habitDoneCount(), total = activeHabits().length;
     const hp = document.getElementById("habitProgress");
     if (hp) hp.textContent = `${n}/${total}`;
@@ -479,7 +481,50 @@ function renderHabits() {
     document.getElementById("habitBarText").innerHTML = `<span>${leftTxt}</span><span>${rightTxt}</span>`;
     renderHeroMetrics(n, total, streak);
 }
-function togglePlanDone() { planHideDone = !planHideDone; renderHabits(); }
+function autoHabitProgressText(id, d) {
+    d = d || currentDate;
+    if (id === "water") return `${waterTotal(d)}/${waterGoal()}ml`;
+    if (id === "supplement") {
+        const o = day(d);
+        const list = store.settings.supplements || [];
+        const done = list.filter(n => o.supplements[n] && o.supplements[n].done).length;
+        return `${done}/${list.length}`;
+    }
+    if (id === "english") {
+        const done = ENG_TASKS.filter(t => isEngTaskDone(t.id, d)).length;
+        return `${done}/${ENG_TASKS.length}`;
+    }
+    if (id === "review") return `${day(d).reviews.length} 条`;
+    return "";
+}
+function openAutoHabit(id) {
+    if (id === "review") {
+        switchTab("review");
+        reviewStart();
+        return;
+    }
+    const targets = {
+        english: { tab: "growth", collapse: "g-english", focus: "engPhrase" },
+        water: { tab: "health", collapse: "h-water", scroll: "card-water" },
+        supplement: { tab: "health", collapse: "h-supp", scroll: "card-supplement" },
+    };
+    const t = targets[id];
+    if (!t) return;
+    switchTab(t.tab);
+    expandCollapseCard(t.collapse);
+    setTimeout(() => {
+        const el = document.getElementById(t.focus || t.scroll);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (t.focus && typeof el.focus === "function") el.focus({ preventScroll: true });
+    }, 80);
+}
+function togglePlanDone() {
+    planHideDone = !planHideDone;
+    store.settings.planHideDone = planHideDone;
+    save();
+    renderHabits();
+}
 function setTxt(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 function setMetric(id, num, unit) {
     const el = document.getElementById(id);
@@ -806,34 +851,27 @@ function collectTimeline(d) {
     return ev;
 }
 function trunc(s, n) { s = s.trim(); return s.length > n ? s.slice(0, n) + "…" : s; }
-let timelineRefs = [];
-const TIMELINE_HOME_LIMIT = 6;
-function toggleTimelineAll() { timelineShowAll = !timelineShowAll; renderTimeline(); }
+const HOME_RECENT_LIMIT = 3;
 function renderTimeline() {
     const ev = collectTimeline();
-    timelineRefs = ev.map(e => e.ref);
     const el = document.getElementById("timeline");
-    if (!ev.length) { el.innerHTML = `<div class="empty-tip">还没有记录，从第一个打卡开始吧 ✨</div>`; return; }
-    const items = ev.map((e, i) => ({ e, i }));
-    const overflow = items.length > TIMELINE_HOME_LIMIT;
-    const shown = (overflow && !timelineShowAll) ? items.slice(-TIMELINE_HOME_LIMIT) : items;
-    const rows = shown.map(({ e, i }) => {
+    if (!el) return;
+    el.classList.add("home-feed");
+    if (!ev.length) {
+        el.innerHTML = `<div class="empty-tip">还没有动态，先完成一个计划开始记录吧 ✨</div><button type="button" class="tl-more" onclick="switchTab('record')">去记录页开始记录<span class="tl-more-ic" data-ic="chevron-right"></span></button>`;
+        renderIcons(el);
+        return;
+    }
+    const shown = ev.slice(-HOME_RECENT_LIMIT).reverse();
+    const rows = shown.map(e => {
         const idx = e.label.indexOf("：");
         const title = idx >= 0 ? e.label.slice(0, idx) : e.label;
         const note = idx >= 0 ? e.label.slice(idx + 1) : "";
-        return `<div class="tl-item"><input type="time" class="tl-time" value="${e.time || ""}" onchange="setTimelineTime(${i},this.value)" title="点击修改实际时间"><div class="tl-card"${note ? ` onclick="this.classList.toggle('tl-expanded')"` : ""}><div class="tl-title">${esc(title)}</div>${note ? `<div class="tl-note">${esc(note)}</div>` : ""}</div></div>`;
+        return `<div class="home-feed-item"><span class="home-feed-time">${e.time || "--:--"}</span><div class="home-feed-body"><div class="home-feed-title">${esc(title)}</div>${note ? `<div class="home-feed-note">${esc(note)}</div>` : ""}</div></div>`;
     }).join("");
-    const toggle = overflow
-        ? `<button type="button" class="tl-more" onclick="toggleTimelineAll()">${timelineShowAll ? "收起" : `查看今天全部 ${items.length} 条`}<span class="tl-more-ic ${timelineShowAll ? "open" : ""}" data-ic="chevron-down"></span></button>`
-        : "";
+    const toggle = `<button type="button" class="tl-more" onclick="switchTab('record')">查看今天全部 ${ev.length} 条<span class="tl-more-ic" data-ic="chevron-right"></span></button>`;
     el.innerHTML = rows + toggle;
     renderIcons(el);
-}
-function setTimelineTime(i, val) {
-    const ref = timelineRefs[i];
-    if (!ref || !val) { renderTimeline(); return; } // 空值不清除，恢复原样
-    ref.time = val;
-    save(); renderTimeline();
 }
 
 /* ==================== 记录页 · 统一时间轴（Phase 3） ==================== */
@@ -1351,7 +1389,9 @@ function growthGo(id) {
     const m = GROWTH_MODULES.find(x => x.id === id); if (!m) return;
     if (m.tab) { switchTab(m.tab); return; }
     const el = document.getElementById(m.target);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!el) return;
+    if (el.dataset.collapse) expandCollapseCard(el.dataset.collapse);
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function renderGrowthOverview() {
     const el = document.getElementById("growthStats"); if (!el) return;
