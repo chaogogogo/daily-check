@@ -13,6 +13,11 @@ const HABITS = [
     { id: "diary", icon: "✍️", name: "日记" },
     { id: "review", icon: "🌙", name: "复盘", auto: true },
 ];
+const HABIT_ICONS = {
+    english: "headphones", tech: "code", reading: "book", exercise: "run",
+    sugar: "activity", supplement: "pill", water: "droplet", skincare: "sparkle",
+    diary: "edit", review: "moon",
+};
 const MEALS = [
     { id: "breakfast", icon: "🌅", name: "早餐" },
     { id: "lunch", icon: "☀️", name: "午餐" },
@@ -61,18 +66,27 @@ const ENG_TIPS = [
 ];
 
 let store = loadStore();
-store.settings.symptomTags = store.settings.symptomTags || ["腰疼", "背疼", "手疼", "腿疼", "腿麻", "肚子疼", "胃酸", "胃疼"];
-store.settings.thoughtTags = store.settings.thoughtTags || ["梦", "情绪", "技能", "工作", "idea", "复盘", "人际", "好物", "其他"];
 let currentDate = todayStr();
 let calYear, calMonth; // 日历视图
 let kType = "播客";
+// 首页折叠状态（Phase 2）
+let planHideDone = false;     // 每日计划：是否隐藏已完成
+let tasksShowDone = false;    // 临时任务：是否展开已完成分组
+let timelineShowAll = false;  // 今日时间轴：是否展开全部
 
 function loadStore() {
+    let s;
     try {
         const raw = localStorage.getItem(STORE_KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) s = JSON.parse(raw);
     } catch (e) { console.error(e); }
-    return { days: {}, settings: { supplements: ["DHA", "钙", "铁", "复合维生素"] } };
+    if (!s || typeof s !== "object") s = {};
+    s.days = s.days || {};
+    s.settings = s.settings || {};
+    s.settings.supplements = s.settings.supplements || ["DHA", "钙", "铁", "复合维生素"];
+    s.settings.symptomTags = s.settings.symptomTags || ["腰疼", "背疼", "手疼", "腿疼", "腿麻", "肚子疼", "胃酸", "胃疼"];
+    s.settings.thoughtTags = s.settings.thoughtTags || ["梦", "情绪", "技能", "工作", "idea", "复盘", "人际", "好物", "其他"];
+    return s;
 }
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
 function day(d) {
@@ -164,29 +178,73 @@ function setDate(d) {
     if (!d) return;
     currentDate = d;
     document.getElementById("datePicker").value = d;
+    const dt = new Date(d + "T12:00:00");
+    const wd = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
     const tip = document.getElementById("notTodayTip");
     if (d === todayStr()) {
         tip.style.display = "none";
     } else {
-        const dt = new Date(d + "T12:00:00");
-        const wd = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
-        document.getElementById("notTodayText").textContent = `📝 正在补录 ${dt.getMonth() + 1}月${dt.getDate()}日（周${wd}）`;
-        tip.style.display = "block";
+        document.getElementById("notTodayText").textContent = `${dt.getMonth() + 1}月${dt.getDate()}日 周${wd}`;
+        tip.style.display = "flex";
     }
     renderAll();
+}
+function pickDate() {
+    const p = document.getElementById("datePicker");
+    if (p.showPicker) { try { p.showPicker(); return; } catch (e) { } }
+    p.focus(); p.click();
 }
 function renderAppTitle() {
     const t = store.settings.appTitle || "CC GOGOGO";
     const el = document.getElementById("appTitle");
     if (el) el.textContent = t;
     document.title = t.replace(/^[^\w\u4e00-\u9fa5]+/, "").trim() || "CC GOGOGO";
+    renderProfile();
 }
-function editTitle() {
+function renderProfile() {
+    setTxt("profileName", store.settings.appTitle || "CC GOGOGO");
+    const streak = overallStreak();
+    const fallback = streak > 0 ? `已连续记录 ${streak} 天 · 继续加油` : "今天，比昨天更好一点";
+    const custom = (store.settings.profileSubtitle || "").trim();
+    setTxt("profileSub", custom || fallback);
+}
+function editTitle(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const input = document.getElementById("titleInput");
+    if (!input) {
+        const cur = store.settings.appTitle || "CC GOGOGO";
+        const v = prompt("自定义标题（可含 emoji）：", cur);
+        if (v === null) return;
+        store.settings.appTitle = v.trim() || "CC GOGOGO";
+        save(); renderAppTitle();
+        return;
+    }
     const cur = store.settings.appTitle || "CC GOGOGO";
-    const v = prompt("自定义标题（可含 emoji）：", cur);
-    if (v === null) return;
-    store.settings.appTitle = v.trim() || "CC GOGOGO";
-    save(); renderAppTitle();
+    const subInput = document.getElementById("profileSubInput");
+    input.value = cur;
+    if (subInput) subInput.value = store.settings.profileSubtitle || "";
+    openSheet("titleSheet");
+    setTimeout(() => {
+        input.focus();
+        input.select();
+    }, 40);
+}
+function saveTitleFromSheet() {
+    const input = document.getElementById("titleInput");
+    const subInput = document.getElementById("profileSubInput");
+    if (!input) return;
+    store.settings.appTitle = input.value.trim() || "CC GOGOGO";
+    if (subInput) {
+        const sub = subInput.value.trim();
+        if (sub) store.settings.profileSubtitle = sub;
+        else delete store.settings.profileSubtitle;
+    }
+    save();
+    renderAppTitle();
+    closeSheet();
 }
 function shiftDate(n) {
     const d = new Date(currentDate + "T12:00:00");
@@ -237,6 +295,15 @@ const ICON_PATHS = {
     trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+    'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+    'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+    leaf: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    run: '<circle cx="13" cy="4" r="2"/><path d="m8 22 3-7 2 2v5"/><path d="M6 12l4-5 4 2 3 3"/><path d="M17 22l-3-5"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
+    sparkle: '<path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6Z"/>',
+    list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+    plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
 };
 function icon(name) {
     const p = ICON_PATHS[name]; if (!p) return "";
@@ -252,6 +319,11 @@ function renderIcons(root) {
 
 /* ==================== Tabs ==================== */
 let activeBottomNav = "home";
+const TAB_TO_NAV = {
+    home: "home", record: "record", growth: "growth", review: "review",
+    settings: "mine", data: "mine", wealth: "record", health: "record",
+    customize: "mine", about: "mine",
+};
 function setBottomNav(navKey) {
     activeBottomNav = navKey;
     document.querySelectorAll("#bottomTabs button").forEach(b => b.classList.toggle("active", b.dataset.nav === activeBottomNav));
@@ -261,15 +333,29 @@ function switchTab(tab, navKey) {
     document.querySelectorAll(".tab-page").forEach(p => p.classList.toggle("active", p.id === "page-" + tab));
 
     if (navKey) setBottomNav(navKey);
-    else if (tab === "home") setBottomNav("home");
-    else if (tab === "review") setBottomNav("review");
-    else if (tab === "settings") setBottomNav("mine");
-    else setBottomNav(null);
+    else setBottomNav(TAB_TO_NAV[tab] || null);
 
-    if (tab === "data") renderHistory();
-    if (tab === "settings") { renderHabitManager(); renderModuleManager(); }
+    if (tab === "data") { renderHistory(); renderBackupTip(); ensurePersistentStorage(); }
+    if (tab === "record") { renderRecordFilterRow(); renderRecordTimeline(); }
+    if (tab === "growth") renderGrowthOverview();
+    if (tab === "health") renderHealthOverview();
+    if (tab === "review") renderReviewOverview();
+    if (tab === "settings") renderProfile();
+    if (tab === "customize") { renderHabitManager(); renderModuleManager(); }
 }
-document.getElementById("tabs").addEventListener("click", e => {
+function openDataSection(collapseId, focusId) {
+    switchTab("data");
+    const card = document.querySelector(`#page-data [data-collapse="${collapseId}"]`);
+    if (card) card.classList.remove("collapsed");
+    setTimeout(() => {
+        const target = document.getElementById(focusId);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.focus({ preventScroll: true });
+    }, 60);
+}
+const topTabs = document.getElementById("tabs");
+if (topTabs) topTabs.addEventListener("click", e => {
     const btn = e.target.closest("button"); if (!btn) return;
     switchTab(btn.dataset.tab);
 });
@@ -286,6 +372,69 @@ document.getElementById("bottomTabs").addEventListener("click", e => {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
+/* ==================== 通用组件 ==================== */
+let toastTimer = null;
+function showToast(msg) {
+    const t = document.getElementById("toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+function openSheet(id) {
+    const scrim = document.getElementById("sheetScrim");
+    const sheet = document.getElementById(id);
+    if (!sheet || !scrim) return;
+    scrim.classList.add("open");
+    sheet.classList.add("open");
+}
+function closeSheet() {
+    document.querySelectorAll(".sheet.open").forEach(s => s.classList.remove("open"));
+    const scrim = document.getElementById("sheetScrim");
+    if (scrim) scrim.classList.remove("open");
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+
+function expandCollapseCard(collapseId) {
+    if (!collapseId) return;
+    const card = document.querySelector(`.card.collapsible[data-collapse="${collapseId}"]`);
+    if (!card || !card.classList.contains("collapsed")) return;
+    card.classList.remove("collapsed");
+    store.settings.collapsed = store.settings.collapsed || {};
+    store.settings.collapsed[collapseId] = false;
+    save();
+}
+
+/* 快速记录 · 从底部 Sheet 跳转到对应的既有输入区（不改数据结构） */
+function openQuickRecord() { openSheet("quickSheet"); }
+const QUICK_TARGETS = {
+    study: { tab: "growth", focus: "techInput", collapse: "g-tech" },
+    meal: { tab: "health", scroll: "mealBlocks", collapse: "h-meals" },
+    water: { tab: "health", scroll: "card-water", collapse: "h-water" },
+    expense: { tab: "wealth", focus: "expenseAmount" },
+    thought: { tab: "review", focus: "thoughtInput", collapse: "thoughts" },
+    diary: { tab: "review", focus: "pregDiaryInput", collapse: "diary" },
+    gratitude: { tab: "review", focus: "gratitudeInput", collapse: "gratitude" },
+    symptom: { tab: "health", scroll: "symptomList", collapse: "h-symptoms" },
+    todo: { tab: "home", focus: "taskInput" },
+};
+function quickRecord(key) {
+    const t = QUICK_TARGETS[key];
+    closeSheet();
+    if (!t) return;
+    switchTab(t.tab);
+    expandCollapseCard(t.collapse);
+    setTimeout(() => {
+        if (t.scroll === "top") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+        let el = document.getElementById(t.focus || t.scroll);
+        if (!el && t.collapse) el = document.querySelector(`.card.collapsible[data-collapse="${t.collapse}"]`);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (t.focus && typeof el.focus === "function") el.focus({ preventScroll: true });
+    }, 60);
+}
+
 /* ==================== 习惯打卡 ==================== */
 function toggleHabit(id) {
     const h = allHabitDefs().find(x => x.id === id);
@@ -297,8 +446,11 @@ function toggleHabit(id) {
 }
 function renderHabits() {
     const grid = document.getElementById("habitGrid");
-    grid.innerHTML = activeHabits().map(h => {
-        const done = isHabitDone(h.id);
+    // 未完成优先，已完成弱化并沉到末尾（Phase 2）
+    const habits = activeHabits().map(h => ({ h, done: isHabitDone(h.id) }));
+    habits.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+    const visible = planHideDone ? habits.filter(x => !x.done) : habits;
+    grid.innerHTML = visible.map(({ h, done }) => {
         let time = "";
         if (done) {
             const o = day();
@@ -309,28 +461,50 @@ function renderHabits() {
             else if (h.id === "tech") { const ts = o.techLogs.map(t => t.time).concat(o.habits.tech && o.habits.tech.done ? [o.habits.tech.time] : []).filter(Boolean).sort(); time = ts[ts.length - 1] || ""; }
             else time = o.habits[h.id].time || "";
         }
-        return `<div class="habit-item ${done ? "done" : ""} ${h.auto ? "auto" : ""}" onclick="toggleHabit('${h.id}')" title="${h.auto ? "该项自动完成" : "点击打卡"}">
-      <span class="icon">${h.icon}</span>
-      <span class="name">${h.name}${h.auto ? "<span style='font-size:10px;color:var(--text-light)'> ·自动</span>" : ""}</span>
-      ${done ? `<span class="time">${time}</span><span class="check">✓</span>` : ""}
-    </div>`;
+        return `<button type="button" class="habit-item ${done ? "done" : ""} ${h.auto ? "auto" : ""}" onclick="toggleHabit('${h.id}')" title="${h.auto ? "该项自动完成" : "点击打卡"}">
+      <span class="habit-ic">${HABIT_ICONS[h.id] ? icon(HABIT_ICONS[h.id]) : h.icon}</span>
+      <span class="habit-info"><span class="name">${h.name}</span><span class="meta">${done ? ((time || "已完成") + (h.auto ? " · 自动" : "")) : (h.auto ? "自动" : "待完成")}</span></span>
+      <span class="habit-check">${done ? icon("check") : ""}</span>
+    </button>`;
     }).join("");
     const n = habitDoneCount(), total = activeHabits().length;
-    document.getElementById("habitProgress").textContent = `${n}/${total}`;
-    document.getElementById("habitBar").style.width = (n / total * 100) + "%";
+    const hp = document.getElementById("habitProgress");
+    if (hp) hp.textContent = `${n}/${total}`;
+    document.getElementById("habitBar").style.width = (total ? n / total * 100 : 0) + "%";
     const streak = overallStreak();
-    const streakTxt = streak > 1 ? ` · 🔥 连续 ${streak} 天` : "";
-    document.getElementById("habitBarText").textContent = (n === total ? "🎉 今日全部完成，太棒啦！" : `已完成 ${n}/${total}`) + streakTxt;
+    const leftTxt = n === total ? "🎉 今日全部完成" : `已完成 ${n} / ${total}`;
+    const rightTxt = n > 0
+        ? `<button type="button" class="plan-done-toggle" onclick="togglePlanDone()">${planHideDone ? `显示已完成 (${n})` : "隐藏已完成"}</button>`
+        : (streak > 1 ? `🔥 连续 ${streak} 天` : "");
+    document.getElementById("habitBarText").innerHTML = `<span>${leftTxt}</span><span>${rightTxt}</span>`;
     renderHeroMetrics(n, total, streak);
 }
+function togglePlanDone() { planHideDone = !planHideDone; renderHabits(); }
+function setTxt(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+function setMetric(id, num, unit) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `${num}${unit ? `<i class="m-unit">${unit}</i>` : ""}`;
+}
 function renderHeroMetrics(done, total, streak) {
-    const h = document.getElementById("heroHabit");
-    if (!h) return;
-    h.textContent = `${done}/${total}`;
-    const expEl = document.getElementById("heroExpense");
-    if (expEl) expEl.textContent = "¥" + fmtMoney(expenseTotal(currentDate));
-    document.getElementById("heroStreak").textContent = `${streak || 0} 天`;
-    document.getElementById("heroWater").textContent = `${waterTotal()} ml`;
+    const ring = document.getElementById("heroRing");
+    if (!ring) return;
+    const pct = total ? Math.round(done / total * 100) : 0;
+    ring.style.setProperty("--p", pct);
+    setTxt("heroRingPct", pct + "%");
+    setTxt("heroRingText", (done === total && total) ? "今日全部完成 🎉" : `今日计划 ${done}/${total}`);
+    setTxt("heroGreeting", heroGreeting());
+    setTxt("heroStreakLine", streak > 0 ? `🔥 已连续记录 ${streak} 天` : "完成任意 1 项，开启连续记录");
+    setMetric("heroPending", Math.max(total - done, 0), "项");
+    setMetric("heroWater", waterTotal(), "ml");
+    setMetric("heroExpense", "¥" + fmtMoney(expenseTotal(currentDate)), "");
+}
+function heroGreeting() {
+    const hr = new Date().getHours();
+    if (hr < 6) return "夜深了";
+    if (hr < 11) return "早上好";
+    if (hr < 14) return "中午好";
+    if (hr < 18) return "下午好";
+    return "晚上好";
 }
 function overallStreak() {
     const today = todayStr();
@@ -446,6 +620,7 @@ function renderEnglish() {
 <div class="meta"><span>${x.d} ${x.p.time}</span></div>
 <button class="del" onclick="delEngPhrase('${x.d}',${x.i})">✕</button></div>`).join(""),
         `<div class="empty-tip">还没有知识点，听到好表达随手记一条吧 ✨</div>`);
+    renderGrowthOverview();
 }
 
 /* ==================== 临时任务 ==================== */
@@ -462,15 +637,35 @@ function toggleTask(i) {
     save(); renderToday();
 }
 function delTask(i) { removeWithUndo(day().tasks, i, "任务", renderToday); }
-function renderTasks() {
-    const tasks = day().tasks;
-    document.getElementById("taskList").innerHTML = tasks.map((t, i) =>
-        `<div class="task-item ${t.done ? "done" : ""}">
-      <span class="task-check" onclick="toggleTask(${i})">${t.done ? "✓" : ""}</span>
+function taskRow(t, i) {
+    return `<div class="task-item ${t.done ? "done" : ""}">
+      <button class="task-check" onclick="toggleTask(${i})" aria-label="${t.done ? "标记未完成" : "标记完成"}">${t.done ? icon("check") : ""}</button>
       <span class="task-text" onclick="toggleTask(${i})">${escMultiline(t.text)}</span>
       ${t.done ? `<span class="task-time">${t.time}</span>` : ""}
-      <button class="del" onclick="delTask(${i})">✕</button>
-    </div>`).join("");
+      <button class="task-del" onclick="delTask(${i})" aria-label="删除任务">✕</button>
+    </div>`;
+}
+function toggleTasksDone() { tasksShowDone = !tasksShowDone; renderTasks(); }
+function renderTasks() {
+    const tasks = day().tasks;
+    const undone = tasks.map((t, i) => ({ t, i })).filter(x => !x.t.done);
+    const done = tasks.map((t, i) => ({ t, i })).filter(x => x.t.done)
+        .sort((a, b) => (a.t.time || "").localeCompare(b.t.time || ""));
+    let html = "";
+    if (!tasks.length) {
+        html = `<div class="empty-tip">还没有临时任务，加一条吧 ✨</div>`;
+    } else {
+        html = undone.map(({ t, i }) => taskRow(t, i)).join("");
+        if (!undone.length) html += `<div class="empty-tip">今天的临时任务都完成啦 🎉</div>`;
+        if (done.length) {
+            html += `<button type="button" class="task-group-toggle ${tasksShowDone ? "open" : ""}" onclick="toggleTasksDone()">
+        <span class="tg-caret" data-ic="chevron-down"></span>已完成 ${done.length} 项</button>`;
+            if (tasksShowDone) html += `<div class="task-done-group">${done.map(({ t, i }) => taskRow(t, i)).join("")}</div>`;
+        }
+    }
+    const list = document.getElementById("taskList");
+    list.innerHTML = html;
+    renderIcons(list);
 }
 
 /* ==================== 喝水 ==================== */
@@ -486,11 +681,11 @@ function addWater(amount) {
 function renderWater() {
     const total = waterTotal();
     const goal = waterGoal(), cup = waterCup();
-    const cupCount = Math.max(1, Math.round(goal / cup));
-    const filled = Math.min(cupCount, Math.floor(total / cup));
-    document.getElementById("waterCups").innerHTML =
-        Array.from({ length: cupCount }, (_, i) => `<div class="cup ${i < filled ? "full" : ""}" onclick="addWater(${cup})">${i < filled ? "💧" : "+"}</div>`).join("");
-    document.getElementById("waterTotal").textContent = total;
+    const pct = goal ? Math.min(100, Math.round(total / goal * 100)) : 0;
+    const bar = document.getElementById("waterProgress"); if (bar) bar.style.width = pct + "%";
+    setTxt("waterTotal", total);
+    setTxt("waterPct", pct + "%");
+    setTxt("waterGoalText", goal);
     const badge = document.getElementById("waterGoalBadge");
     if (badge) badge.textContent = `目标 ${goal}ml`;
     const gi = document.getElementById("waterGoalInput"); if (gi && document.activeElement !== gi) gi.value = goal;
@@ -525,63 +720,175 @@ function manageSupplements() {
     save(); renderToday();
 }
 
+/* ==================== 健康概览（Phase 5） ==================== */
+const HEALTH_MODULES = [
+    { name: "饮食", ic: "utensils", target: "card-meals" },
+    { name: "饮水", ic: "droplet", target: "card-water" },
+    { name: "补剂", ic: "pill", target: "card-supplement" },
+    { name: "锻炼", ic: "activity", target: "card-exercise" },
+    { name: "排便", ic: "record", target: "card-bowel" },
+    { name: "体重", ic: "scale", target: "card-weight" },
+    { name: "睡眠", ic: "bed", target: "card-sleep" },
+    { name: "孕期", ic: "thermometer", target: "card-symptoms" },
+];
+function healthGo(target) {
+    const el = document.getElementById(target);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function renderHealthOverview() {
+    const el = document.getElementById("healthOverview"); if (!el) return;
+    const o = day();
+    const badge = document.getElementById("healthDateBadge");
+    if (badge) badge.textContent = currentDate === todayStr() ? "今天" : dateLabel(currentDate);
+    const list = store.settings.supplements || [];
+    const supDone = list.filter(n => o.supplements[n] && o.supplements[n].done).length;
+    const sleepLabel = o.sleep ? ({ good: "好", mid: "一般", bad: "差" }[o.sleep.quality] || "一般") : "—";
+    const weightVal = o.weight ? o.weight.value : null;
+    const metrics = [
+        { b: String(waterTotal()), u: `/${waterGoal()}ml`, s: "饮水" },
+        { b: String(supDone), u: `/${list.length}`, s: "补剂" },
+        { b: sleepLabel, u: "", s: "睡眠" },
+        { b: weightVal != null ? String(weightVal) : "—", u: weightVal != null ? "kg" : "", s: "体重" },
+    ];
+    el.innerHTML = `
+    <div class="health-metrics">${metrics.map(m => `<div class="health-metric"><b>${esc(m.b)}${m.u ? `<i>${esc(m.u)}</i>` : ""}</b><span>${m.s}</span></div>`).join("")}</div>
+    <div class="health-modules">${HEALTH_MODULES.map(m => `<button type="button" class="gh-mod" onclick="healthGo('${m.target}')"><span class="gh-mod-ic" data-ic="${m.ic}"></span>${m.name}</button>`).join("")}</div>
+  `;
+    renderIcons(el);
+}
+
 /* ==================== 时间轴 ==================== */
+const HABIT_CAT = {
+    english: "study", tech: "study", reading: "study",
+    exercise: "health", sugar: "health",
+    skincare: "life", diary: "life", review: "life",
+};
 function collectTimeline(d) {
     const o = day(d), ev = [];
     HABITS.forEach(h => {
         if (!h.auto && o.habits[h.id] && o.habits[h.id].done && o.habits[h.id].time)
-            ev.push({ time: o.habits[h.id].time, label: `${h.icon} 完成打卡：${h.name}`, ref: o.habits[h.id] });
+            ev.push({ time: o.habits[h.id].time, label: `${h.icon} 完成打卡：${h.name}`, ref: o.habits[h.id], cat: HABIT_CAT[h.id] || "life" });
     });
-    o.waterLogs.forEach(l => ev.push({ time: l.time, label: `💧 喝水 ${l.amount}ml`, ref: l }));
+    o.waterLogs.forEach(l => ev.push({ time: l.time, label: `💧 喝水 ${l.amount}ml`, ref: l, cat: "health" }));
     ENG_TASKS.forEach(t => {
-        if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${trunc(p.text, 18)}`, ref: p }); });
+        if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${trunc(p.text, 18)}`, ref: p, cat: "study" }); });
         else {
             const rec = o.english.tasks[t.id];
-            if (rec && rec.count > 0) ev.push({ time: rec.time, label: `${t.icon} 英语：${t.name}${rec.count > 1 ? ` ×${rec.count}` : ""}`, ref: rec });
-            (rec && rec.notes || []).forEach(n => { if (n.time) ev.push({ time: n.time, label: `✍️ 英语[${t.name}]：${trunc(n.text, 18)}`, ref: n }); });
+            if (rec && rec.count > 0) ev.push({ time: rec.time, label: `${t.icon} 英语：${t.name}${rec.count > 1 ? ` ×${rec.count}` : ""}`, ref: rec, cat: "study" });
+            (rec && rec.notes || []).forEach(n => { if (n.time) ev.push({ time: n.time, label: `✍️ 英语[${t.name}]：${trunc(n.text, 18)}`, ref: n, cat: "study" }); });
         }
     });
-    o.tasks.forEach(t => { if (t.done && t.time) ev.push({ time: t.time, label: `📌 完成任务：${trunc(t.text, 18)}`, ref: t }); });
-    Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}`, ref: s }); });
-    o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${trunc(r.text, 18)}`, ref: r }); });
-    o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${trunc(g.text, 18)}`, ref: g }));
+    o.tasks.forEach(t => { if (t.done && t.time) ev.push({ time: t.time, label: `📌 完成任务：${trunc(t.text, 18)}`, ref: t, cat: "life" }); });
+    Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}`, ref: s, cat: "health" }); });
+    o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${trunc(r.text, 18)}`, ref: r, cat: "life" }); });
+    o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${trunc(g.text, 18)}`, ref: g, cat: "life" }));
     Object.entries(o.meals).forEach(([mid, m]) => {
         const meal = MEALS.find(x => x.id === mid);
-        if (meal && m.time && (m.food || m.rating)) ev.push({ time: m.time, label: `${meal.icon} 记录${meal.name}${m.food ? "：" + trunc(m.food, 14) : ""}`, ref: m });
+        if (meal && m.time && (m.food || m.rating)) ev.push({ time: m.time, label: `${meal.icon} 记录${meal.name}${m.food ? "：" + trunc(m.food, 14) : ""}`, ref: m, cat: "diet" });
     });
-    o.snacks.forEach(s => { if (s.time && (s.food || s.rating)) ev.push({ time: s.time, label: `🍎 加餐${s.food ? "：" + trunc(s.food, 14) : ""}`, ref: s }); });
-    o.exercises.forEach(x => ev.push({ time: x.time, label: `🏃 锻炼：${trunc(x.text, 18)}`, ref: x }));
-    o.bowels.forEach(b => { const extra = [b.amount ? "量·" + b.amount : "", b.honey === true ? "蜂蜜露" : ""].filter(Boolean).join(" "); ev.push({ time: b.time, label: `💩 排便${extra ? "（" + extra + "）" : ""}`, ref: b }); });
-    o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${trunc(p.text, 18)}`, ref: p }); });
-    if (o.weight && o.weight.time) ev.push({ time: o.weight.time, label: `⚖️ 体重 ${o.weight.value} kg${o.weight.note ? "·" + trunc(o.weight.note, 12) : ""}`, ref: o.weight });
+    o.snacks.forEach(s => { if (s.time && (s.food || s.rating)) ev.push({ time: s.time, label: `🍎 加餐${s.food ? "：" + trunc(s.food, 14) : ""}`, ref: s, cat: "diet" }); });
+    o.exercises.forEach(x => ev.push({ time: x.time, label: `🏃 锻炼：${trunc(x.text, 18)}`, ref: x, cat: "health" }));
+    o.bowels.forEach(b => { const extra = [b.amount ? "量·" + b.amount : "", b.honey === true ? "蜂蜜露" : ""].filter(Boolean).join(" "); ev.push({ time: b.time, label: `💩 排便${extra ? "（" + extra + "）" : ""}`, ref: b, cat: "health" }); });
+    o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${trunc(p.text, 18)}`, ref: p, cat: "pregnancy" }); });
+    if (o.weight && o.weight.time) ev.push({ time: o.weight.time, label: `⚖️ 体重 ${o.weight.value} kg${o.weight.note ? "·" + trunc(o.weight.note, 12) : ""}`, ref: o.weight, cat: "health" });
     if (o.sleep && o.sleep.time) {
         const sLabel = { good: "好 😊", mid: "一般 😐", bad: "差 😵" };
-        ev.push({ time: o.sleep.time, label: `😴 睡眠：${sLabel[o.sleep.quality] || "一般 😐"}`, ref: o.sleep });
+        ev.push({ time: o.sleep.time, label: `😴 睡眠：${sLabel[o.sleep.quality] || "一般 😐"}`, ref: o.sleep, cat: "health" });
     }
-    o.symptoms.forEach(s => ev.push({ time: s.time, label: `🤕 孕期反应：${s.tag}`, ref: s }));
-    o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${trunc(t.text, 18)}`, ref: t }));
-    o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}`, ref: m }));
-    o.thoughts.forEach(t => ev.push({ time: t.time, label: `💭 想法${t.tag ? "[" + t.tag + "]" : ""}：${trunc(t.text, 18)}`, ref: t }));
-    o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}`, ref: k }));
-    o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "·" + trunc(e.note, 10) : ""}`, ref: e }));
-    o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${trunc(w.item, 14)}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`, ref: w }); });
+    o.symptoms.forEach(s => ev.push({ time: s.time, label: `🤕 孕期反应：${s.tag}`, ref: s, cat: "pregnancy" }));
+    o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${trunc(t.text, 18)}`, ref: t, cat: "study" }));
+    o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}`, ref: m, cat: "inspiration" }));
+    o.thoughts.forEach(t => ev.push({ time: t.time, label: `💭 想法${t.tag ? "[" + t.tag + "]" : ""}：${trunc(t.text, 18)}`, ref: t, cat: "inspiration" }));
+    o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}`, ref: k, cat: "study" }));
+    o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "·" + trunc(e.note, 10) : ""}`, ref: e, cat: "consume" }));
+    o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${trunc(w.item, 14)}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`, ref: w, cat: "consume" }); });
     ev.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
     return ev;
 }
 function trunc(s, n) { s = s.trim(); return s.length > n ? s.slice(0, n) + "…" : s; }
 let timelineRefs = [];
+const TIMELINE_HOME_LIMIT = 6;
+function toggleTimelineAll() { timelineShowAll = !timelineShowAll; renderTimeline(); }
 function renderTimeline() {
     const ev = collectTimeline();
     timelineRefs = ev.map(e => e.ref);
-    document.getElementById("timeline").innerHTML = ev.length
-        ? ev.map((e, i) => `<div class="tl-item"><input type="time" class="tl-time" value="${e.time || ""}" onchange="setTimelineTime(${i},this.value)" title="点击修改实际时间"><span class="tl-label">${esc(e.label)}</span></div>`).join("")
-        : `<div class="empty-tip">还没有记录，从第一个打卡开始吧 ✨</div>`;
+    const el = document.getElementById("timeline");
+    if (!ev.length) { el.innerHTML = `<div class="empty-tip">还没有记录，从第一个打卡开始吧 ✨</div>`; return; }
+    const items = ev.map((e, i) => ({ e, i }));
+    const overflow = items.length > TIMELINE_HOME_LIMIT;
+    const shown = (overflow && !timelineShowAll) ? items.slice(-TIMELINE_HOME_LIMIT) : items;
+    const rows = shown.map(({ e, i }) => {
+        const idx = e.label.indexOf("：");
+        const title = idx >= 0 ? e.label.slice(0, idx) : e.label;
+        const note = idx >= 0 ? e.label.slice(idx + 1) : "";
+        return `<div class="tl-item"><input type="time" class="tl-time" value="${e.time || ""}" onchange="setTimelineTime(${i},this.value)" title="点击修改实际时间"><div class="tl-card"${note ? ` onclick="this.classList.toggle('tl-expanded')"` : ""}><div class="tl-title">${esc(title)}</div>${note ? `<div class="tl-note">${esc(note)}</div>` : ""}</div></div>`;
+    }).join("");
+    const toggle = overflow
+        ? `<button type="button" class="tl-more" onclick="toggleTimelineAll()">${timelineShowAll ? "收起" : `查看今天全部 ${items.length} 条`}<span class="tl-more-ic ${timelineShowAll ? "open" : ""}" data-ic="chevron-down"></span></button>`
+        : "";
+    el.innerHTML = rows + toggle;
+    renderIcons(el);
 }
 function setTimelineTime(i, val) {
     const ref = timelineRefs[i];
     if (!ref || !val) { renderTimeline(); return; } // 空值不清除，恢复原样
     ref.time = val;
     save(); renderTimeline();
+}
+
+/* ==================== 记录页 · 统一时间轴（Phase 3） ==================== */
+const RECORD_FILTERS = [
+    { id: "all", name: "全部" },
+    { id: "health", name: "健康" },
+    { id: "diet", name: "饮食" },
+    { id: "study", name: "学习" },
+    { id: "life", name: "生活" },
+    { id: "consume", name: "消费" },
+    { id: "pregnancy", name: "孕期" },
+    { id: "inspiration", name: "灵感" },
+];
+let recordFilter = "all";
+let recordRefs = [];
+function dateLabel(d) {
+    const dt = new Date(d + "T12:00:00");
+    const wd = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
+    return `${dt.getMonth() + 1}月${dt.getDate()}日 周${wd}`;
+}
+function setRecordFilter(id) { recordFilter = id; renderRecordFilterRow(); renderRecordTimeline(); }
+function renderRecordFilterRow() {
+    const row = document.getElementById("recordFilterRow");
+    if (!row) return;
+    row.innerHTML = RECORD_FILTERS.map(f =>
+        `<button type="button" class="filter-chip ${recordFilter === f.id ? "sel" : ""}" onclick="setRecordFilter('${f.id}')">${f.name}</button>`).join("");
+}
+function renderRecordTimeline() {
+    const el = document.getElementById("recordTimeline");
+    if (!el) return;
+    const badge = document.getElementById("recordDateBadge");
+    if (badge) badge.textContent = currentDate === todayStr() ? "今天" : dateLabel(currentDate);
+    const ev = collectTimeline();
+    recordRefs = ev.map(e => e.ref);
+    let items = ev.map((e, i) => ({ e, i }));   // 保留原始 index 供改时间
+    if (recordFilter !== "all") items = items.filter(x => x.e.cat === recordFilter);
+    const searchEl = document.getElementById("recordSearch");
+    const q = (searchEl ? searchEl.value : "").trim().toLowerCase();
+    if (q) items = items.filter(x => x.e.label.toLowerCase().includes(q));
+    if (!items.length) {
+        el.innerHTML = `<div class="empty-tip">${(q || recordFilter !== "all") ? "没有匹配的记录" : "这一天还没有记录，用右下角 ＋ 开始记录吧 ✨"}</div>`;
+        return;
+    }
+    el.innerHTML = items.map(({ e, i }) => {
+        const idx = e.label.indexOf("：");
+        const title = idx >= 0 ? e.label.slice(0, idx) : e.label;
+        const note = idx >= 0 ? e.label.slice(idx + 1) : "";
+        return `<div class="tl-item"><input type="time" class="tl-time" value="${e.time || ""}" onchange="setRecordTime(${i},this.value)" title="点击修改实际时间"><div class="tl-card"${note ? ` onclick="this.classList.toggle('tl-expanded')"` : ""}><div class="tl-title">${esc(title)}</div>${note ? `<div class="tl-note">${esc(note)}</div>` : ""}</div></div>`;
+    }).join("");
+}
+function setRecordTime(i, val) {
+    const ref = recordRefs[i];
+    if (!ref || !val) { renderRecordTimeline(); return; }
+    ref.time = val;
+    save(); renderRecordTimeline();
 }
 function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 function escMultiline(s) { return esc(s).replace(/\n/g, "<br>"); }
@@ -634,7 +941,9 @@ function toggleCard(h2) {
 function applyCollapsedState() {
     const map = store.settings.collapsed || {};
     document.querySelectorAll(".card.collapsible").forEach(card => {
-        card.classList.toggle("collapsed", !!map[card.dataset.collapse]);
+        const stored = map[card.dataset.collapse];
+        const collapsed = (stored === undefined) ? (card.dataset.collapseDefault === "collapsed") : !!stored;
+        card.classList.toggle("collapsed", collapsed);
     });
 }
 
@@ -657,17 +966,24 @@ function orderedHabitDefs() {
     allHabitDefs().forEach(h => { if (byId[h.id]) list.push(h); });
     return list;
 }
+function goHabits() {
+    switchTab("customize");
+    setTimeout(() => {
+        const sec = document.getElementById("personalizeHabits");
+        if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+}
 function renderHabitManager() {
     const el = document.getElementById("habitManager"); if (!el) return;
     const hidden = store.settings.habitHidden || {};
     const list = orderedHabitDefs();
     const customIds = new Set((store.settings.customHabits || []).map(h => h.id));
     el.innerHTML = list.map((h, i) => `<div class="habit-mng-row">
-      <span class="hm-name">${h.icon} ${h.name}${customIds.has(h.id) ? " <em>自定义</em>" : ""}</span>
+      <span class="hm-name"><span class="hm-ic">${h.icon}</span>${h.name}${customIds.has(h.id) ? " <em>自定义</em>" : ""}</span>
       <span class="hm-actions">
         <button onclick="moveHabit('${h.id}',-1)" ${i === 0 ? "disabled" : ""}>↑</button>
         <button onclick="moveHabit('${h.id}',1)" ${i === list.length - 1 ? "disabled" : ""}>↓</button>
-        <label class="hm-show"><input type="checkbox" ${hidden[h.id] ? "" : "checked"} onchange="toggleHabitHidden('${h.id}',this.checked)"> 显示</label>
+        <label class="switch" title="显示/隐藏"><input type="checkbox" ${hidden[h.id] ? "" : "checked"} onchange="toggleHabitHidden('${h.id}',this.checked)"><span class="switch-slider"></span></label>
         ${customIds.has(h.id) ? `<button class="hm-del" onclick="deleteCustomHabit('${h.id}')">✕</button>` : ""}
       </span>
     </div>`).join("");
@@ -708,7 +1024,7 @@ function renderModuleManager() {
     const el = document.getElementById("moduleManager"); if (!el) return;
     const hide = store.settings.hideModules || {};
     el.innerHTML = OPTIONAL_MODULES.map(m =>
-        `<label class="toggle-row"><span>${m.name}</span><input type="checkbox" ${hide[m.id] ? "" : "checked"} onchange="toggleModule('${m.id}',this.checked)"></label>`).join("");
+        `<label class="toggle-row"><span>${m.name}</span><span class="switch"><input type="checkbox" ${hide[m.id] ? "" : "checked"} onchange="toggleModule('${m.id}',this.checked)"><span class="switch-slider"></span></span></label>`).join("");
 }
 function toggleModule(id, show) {
     store.settings.hideModules = store.settings.hideModules || {};
@@ -735,6 +1051,45 @@ function renderReviews() {
     document.getElementById("reviewList").innerHTML = list.map((r, i) =>
         `<div class="entry">${escMultiline(r.text)}<div class="meta"><span>${r.time}</span></div>
      <button class="del" onclick="delReview(${i})">✕</button></div>`).join("");
+}
+
+/* ==================== 复盘概览（Phase 6） ==================== */
+function reviewStart() {
+    const card = document.getElementById("card-review");
+    if (!card) return;
+    if (card.classList.contains("collapsed")) {
+        card.classList.remove("collapsed");
+        store.settings.collapsed = store.settings.collapsed || {};
+        store.settings.collapsed["review"] = false;
+        save();
+    }
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => { const ta = document.getElementById("reviewInput"); if (ta) ta.focus({ preventScroll: true }); }, 350);
+}
+function renderReviewOverview() {
+    const el = document.getElementById("reviewOverview"); if (!el) return;
+    const o = day();
+    const badge = document.getElementById("reviewDateBadge");
+    if (badge) badge.textContent = currentDate === todayStr() ? "今天" : dateLabel(currentDate);
+    const reviewed = o.reviews.length > 0;
+    const metrics = [
+        { b: reviewed ? "已复盘" : "未复盘", s: "复盘", cls: reviewed ? "done" : "" },
+        { b: String(o.gratitude.length), s: "感恩" },
+        { b: String(o.pregDiaries.length), s: "日记" },
+    ];
+    const recent = [];
+    Object.keys(store.days).sort().reverse().forEach(d => {
+        (store.days[d].reviews || []).forEach(r => recent.push({ d, r }));
+    });
+    recent.sort((a, b) => (b.d + (b.r.time || "")).localeCompare(a.d + (a.r.time || "")));
+    const recentHtml = recent.slice(0, 2).map(x =>
+        `<div class="rv-recent-item"><span class="rv-r-text">${esc(trunc(x.r.text, 40))}</span><span class="rv-r-date">${x.d === todayStr() ? "今天" : x.d.slice(5)}</span></div>`).join("");
+    el.innerHTML = `
+    <div class="review-metrics">${metrics.map(m => `<div class="review-metric ${m.cls || ""}"><b>${m.b}</b><span>${m.s}</span></div>`).join("")}</div>
+    <button type="button" class="btn review-start-btn" onclick="reviewStart()">${reviewed ? "继续今日复盘" : "开始今日复盘"}</button>
+    ${recent.length ? `<div class="rv-recent-title">最近复盘</div><div class="rv-recent">${recentHtml}</div>` : ""}
+  `;
+    renderIcons(el);
 }
 function flash(id, msg) {
     const el = document.getElementById(id);
@@ -985,6 +1340,50 @@ function renderSymptoms() {
 }
 
 /* ==================== 技术学习 ==================== */
+/* ==================== 成长概览（Phase 4） ==================== */
+const GROWTH_MODULES = [
+    { id: "english", name: "英语", ic: "headphones", target: "card-english" },
+    { id: "tech", name: "技术", ic: "code", target: "card-tech" },
+    { id: "knowledge", name: "知识", ic: "book", target: "card-knowledge" },
+    { id: "media", name: "自媒体", ic: "megaphone", target: "card-media" },
+];
+function growthGo(id) {
+    const m = GROWTH_MODULES.find(x => x.id === id); if (!m) return;
+    if (m.tab) { switchTab(m.tab); return; }
+    const el = document.getElementById(m.target);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function renderGrowthOverview() {
+    const el = document.getElementById("growthStats"); if (!el) return;
+    const today = todayStr();
+    let learnDays = 0, newCount = 0;
+    const recent = [];
+    for (let i = 0; i < 7; i++) {
+        const d = offsetDate(today, -i);
+        const o = day(d);
+        const items = [];
+        (o.techLogs || []).forEach(t => items.push({ d, time: t.time || "", ic: "💻", label: trunc(t.text, 22) }));
+        (o.knowledge || []).forEach(k => items.push({ d, time: k.time || "", ic: "📚", label: `[${k.type}] ${trunc(k.text, 18)}` }));
+        ((o.english && o.english.phrases) || []).forEach(p => items.push({ d, time: p.time || "", ic: "✍️", label: trunc(p.text, 22) }));
+        (o.media || []).forEach(m => items.push({ d, time: m.time || "", ic: "📣", label: `[${m.tag}] ${trunc(m.text, 16)}` }));
+        newCount += items.length;
+        if (items.length || isHabitDone("english", d)) learnDays++;
+        recent.push(...items);
+    }
+    recent.sort((a, b) => (b.d + b.time).localeCompare(a.d + a.time));
+    el.innerHTML = `
+    <div class="gh-metrics">
+      <div class="gh-metric"><b>${learnDays}<i>天</i></b><span>本周学习</span></div>
+      <div class="gh-metric"><b>${newCount}<i>条</i></b><span>本周新增</span></div>
+    </div>
+    <div class="gh-modules">${GROWTH_MODULES.map(m => `<button type="button" class="gh-mod" onclick="growthGo('${m.id}')"><span class="gh-mod-ic" data-ic="${m.ic}"></span>${m.name}</button>`).join("")}</div>
+    ${recent.length
+            ? `<div class="gh-recent-title">最近学习</div><div class="gh-recent">${recent.slice(0, 3).map(r => `<div class="gh-recent-item"><span class="gh-r-ic">${r.ic}</span><span class="gh-r-text">${esc(r.label)}</span><span class="gh-r-date">${r.d === today ? "今天" : r.d.slice(5)}</span></div>`).join("")}</div>`
+            : `<div class="gh-recent-empty">本周还没有学习记录，从下面记一条开始吧 ✨</div>`}
+  `;
+    renderIcons(el);
+}
+
 function addTech() {
     const ta = document.getElementById("techInput");
     const text = ta.value.trim(); if (!text) return;
@@ -1002,6 +1401,7 @@ function renderTech() {
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
 <button class="del" onclick="delTech('${x.d}',${x.i})">✕</button></div>`).join(""),
         `<div class="empty-tip">今天学了什么？随手记一条，同时完成"技术学习"打卡 💪</div>`);
+    renderGrowthOverview();
 }
 
 /* ==================== 孕期日记 ==================== */        function addPregDiary() {
@@ -1048,6 +1448,7 @@ function renderMedia() {
 <div class="meta"><span>${x.d} ${x.m.time}</span></div>
 <button class="del" onclick="delMedia('${x.d}',${x.i})">✕</button></div>`).join(""),
         `<div class="empty-tip">还没有运营记录，发布一条 / 整理素材就记一条吧</div>`);
+    renderGrowthOverview();
 }
 
 /* ==================== 想法碎片 ==================== */
@@ -1120,6 +1521,7 @@ function renderKnowledge() {
 <div class="meta"><span>${x.d} ${x.k.time}</span></div>
 <button class="del" onclick="delKnowledge('${x.d}',${x.i})">✕</button></div>`).join(""),
         `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`);
+    renderGrowthOverview();
 }
 
 /* ==================== 丰盛（开支 / 冷静购物） ==================== */
@@ -1770,7 +2172,9 @@ function importJSON(input) {
         try {
             const data = JSON.parse(reader.result);
             if (!data.days) throw new Error("格式不正确");
-            if (!confirm(`将导入 ${Object.keys(data.days).length} 天的数据，与现有数据按日期合并（同日期以导入数据为准）。继续？`)) return;
+            const dates = Object.keys(data.days).sort();
+            const range = dates.length ? `${dates[0]} ~ ${dates[dates.length - 1]}` : "无";
+            if (!confirm(`导入文件：${file.name}\n记录天数：${dates.length} 天\n日期范围：${range}\n合并方式：按日期合并（同日期以导入数据为准）\n\n确认导入？`)) return;
             Object.assign(store.days, data.days);
             if (data.settings && data.settings.supplements) store.settings.supplements = data.settings.supplements;
             if (data.settings && data.settings.symptomTags) store.settings.symptomTags = data.settings.symptomTags;
@@ -1783,21 +2187,25 @@ function importJSON(input) {
     input.value = "";
 }
 function clearAll() {
-    if (!confirm("确定清空全部数据？此操作不可恢复！")) return;
-    if (!confirm("再次确认：真的要清空吗？建议先导出 JSON 备份。")) return;
+    if (!confirm("确定清空全部数据？此操作不可恢复，建议先导出 JSON 备份。")) return;
+    const word = prompt('二次确认：请输入「清空」以永久删除全部数据（此操作不可恢复）。');
+    if (word === null) return;
+    if (word.trim() !== "清空") { alert("输入不匹配，已取消清空。"); return; }
     localStorage.removeItem(STORE_KEY);
     store = loadStore();
     renderAll();
+    if (typeof showToast === "function") showToast("已清空全部数据");
 }
 
 /* ==================== 渲染入口 ==================== */
 function renderToday() {
     renderHabits(); renderEnglish(); renderTasks(); renderWater(); renderSupps(); renderTimeline(); renderReviews(); renderGratitude(); renderSummary(); renderMeals();
     renderSnacks(); renderExercises(); renderBowelForm(); renderBowel(); renderPregDiaries();
-    renderWeight(); renderSleep(); renderSymptoms();
+    renderWeight(); renderSleep(); renderSymptoms(); renderHealthOverview(); renderReviewOverview();
 }
 function renderAll() {
     renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderBackupTip();
+    renderRecordTimeline();
     if (document.getElementById("page-data").classList.contains("active")) renderHistory();
 }
 
@@ -1865,11 +2273,12 @@ window.addEventListener("focus", checkDayRollover);
 (function init() {
     const now = new Date();
     calYear = now.getFullYear(); calMonth = now.getMonth();
-    document.getElementById("datePicker").value = currentDate;
+    setDate(currentDate);
     renderIcons();
     selectKType(document.querySelector('#knowledgeTypeRow button[data-ktype="播客"]'));
     selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
     renderThoughtTagRow();
+    renderRecordFilterRow();
     renderAppTitle();
     renderAll();
     switchTab("home", "home");

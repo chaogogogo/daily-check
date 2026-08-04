@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#355a4f">
     <link rel="apple-touch-icon" href="icon-180.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=61">
 </head>
 
 <body>
@@ -27,50 +27,78 @@
     </div>
 
     <header>
-        <h1 id="appTitle" title="点击修改标题" onclick="editTitle()">CC GOGOGO</h1>
-        <div class="date-nav">
-            <button onclick="shiftDate(-1)" title="前一天（补录）">‹</button>
-            <input type="date" id="datePicker" onchange="setDate(this.value)">
-            <button onclick="shiftDate(1)" title="后一天">›</button>
-        </div>
-        <div class="hero-metrics" id="heroMetrics">
-            <div class="hero-metric"><b id="heroHabit">0/0</b><span>今日计划</span></div>
-            <div class="hero-metric"><b id="heroExpense">¥0</b><span>今日花费</span></div>
-            <div class="hero-metric"><b id="heroStreak">0 天</b><span>连续记录</span></div>
-            <div class="hero-metric"><b id="heroWater">0 ml</b><span>今日喝水</span></div>
+        <div class="header-inner">
+            <div class="brand" title="点击修改标题" onclick="editTitle()">
+                <span class="brand-mark" data-ic="leaf"></span>
+                <span class="brand-text">
+                    <span class="brand-name" id="appTitle">CC GOGOGO</span>
+                    <span class="brand-sub">今天，比昨天更好一点</span>
+                </span>
+            </div>
+            <div class="date-nav">
+                <button class="nav-arrow" onclick="shiftDate(-1)" title="前一天（补录）" aria-label="前一天"><span
+                        data-ic="chevron-left"></span></button>
+                <button class="date-btn" onclick="pickDate()" title="选择日期" aria-label="选择日期">
+                    <span class="date-cal" data-ic="calendar"></span>
+                </button>
+                <input type="date" id="datePicker" class="date-hidden" onchange="setDate(this.value)" aria-hidden="true"
+                    tabindex="-1">
+                <button class="nav-arrow" onclick="shiftDate(1)" title="后一天" aria-label="后一天"><span
+                        data-ic="chevron-right"></span></button>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" onclick="openDataSection('d-search','searchInput')" title="搜索"
+                    aria-label="搜索"><span data-ic="search"></span></button>
+                <button class="icon-btn hide-mobile" onclick="switchTab('settings')" title="设置" aria-label="设置"><span
+                        data-ic="sliders"></span></button>
+            </div>
         </div>
         <div class="not-today-tip" id="notTodayTip" style="display:none">
-            <span id="notTodayText"></span> · <a onclick="setDate(todayStr())">回到今天</a>
+            <span class="ntt-label"><span class="ntt-ic" data-ic="calendar"></span><span
+                    id="notTodayText"></span></span>
+            <button class="ntt-back" onclick="setDate(todayStr())">回到今天</button>
         </div>
     </header>
-
-    <nav class="tabs" id="tabs">
-        <button data-tab="home" class="active">首页</button>
-        <button data-tab="record">记录</button>
-        <button data-tab="growth">成长</button>
-        <button data-tab="review">复盘</button>
-        <button data-tab="wealth">丰盛</button>
-        <button data-tab="data">数据</button>
-    </nav>
 
     <main>
         <!-- ============ 今日 ============ -->
         <div class="tab-page active" id="page-home">
+            <div class="card hero-card">
+                <div class="today-hero">
+                    <div class="hero-ring-block">
+                        <div class="hero-ring" id="heroRing" role="img" aria-label="今日计划完成度">
+                            <span class="hero-ring-num" id="heroRingPct">0%</span>
+                        </div>
+                        <div class="hero-greeting">
+                            <b id="heroGreeting">你好</b>
+                            <span id="heroRingText">今日计划 0/0</span>
+                            <span class="hero-sub" id="heroStreakLine"></span>
+                        </div>
+                    </div>
+                    <div class="hero-metrics" id="heroMetrics">
+                        <div class="hero-metric"><b id="heroPending">0 项</b><span>待完成</span></div>
+                        <div class="hero-metric"><b id="heroWater">0 ml</b><span>今日喝水</span></div>
+                        <div class="hero-metric"><b id="heroExpense">¥0</b><span>今日花费</span></div>
+                    </div>
+                </div>
+            </div>
             <div class="card" id="card-plan">
-                <h2><span class="tico" data-ic="plan"></span>每日计划 <span class="badge" id="habitProgress"></span></h2>
+                <h2><span class="tico" data-ic="plan"></span>每日计划<button class="card-link" onclick="goHabits()">管理习惯
+                        <span class="card-link-ic" data-ic="chevron-right"></span></button></h2>
                 <div class="habit-grid" id="habitGrid"></div>
                 <div class="progress-bar">
                     <div id="habitBar" style="width:0%"></div>
                 </div>
                 <div class="progress-text" id="habitBarText"></div>
-                <div class="task-section">
-                    <div class="task-title">临时任务</div>
-                    <div id="taskList"></div>
-                    <div class="task-add">
-                        <input type="text" id="taskInput" placeholder="添加今天的临时任务，回车确认…"
-                            onkeydown="if(event.key==='Enter')addTask()">
-                        <button class="btn small" onclick="addTask()">添加</button>
-                    </div>
+            </div>
+
+            <div class="card" id="card-tasks">
+                <h2><span class="tico" data-ic="list"></span>临时任务</h2>
+                <div class="task-list" id="taskList"></div>
+                <div class="task-add">
+                    <input type="text" id="taskInput" placeholder="添加今天的临时任务，回车确认…"
+                        onkeydown="if(event.key==='Enter')addTask()">
+                    <button class="btn" onclick="addTask()">添加</button>
                 </div>
             </div>
 
@@ -83,109 +111,193 @@
 
         <!-- ============ 成长 ============ -->
         <div class="tab-page" id="page-growth">
-            <div class="card">
-                <h2><span class="tico" data-ic="headphones"></span>英语提升 <span class="badge" id="engBadge"></span></h2>
+            <div class="card growth-hero">
+                <h2><span class="tico" data-ic="trend"></span>成长概览 <span class="badge">本周</span></h2>
+                <div class="growth-stats" id="growthStats"></div>
+            </div>
+            <div class="card collapsible" id="card-english" data-collapse="g-english" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="headphones"></span>英语提升 <span class="badge"
+                        id="engBadge"></span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="eng-streak" id="engStreak"></div>
                 <div class="eng-tip" id="engTip"></div>
                 <div id="engTaskList"></div>
                 <div class="eng-phrase">
                     <div class="task-title">英语知识点 · 听到/用到的好表达、新单词，随时记、可累加（记 1 条即完成第 5 项）</div>
-                    <div class="input-with-mic">
+                    <div class="composer">
                         <textarea id="engPhrase" rows="2"
                             placeholder="例如：Let me push back on that. — 会议中委婉表达不同意见"></textarea>
-                        <button class="mic-btn" data-ic="mic" id="micEngPhrase"
-                            onclick="toggleMic('engPhrase','micEngPhrase')"></button>
-                    </div>
-                    <div class="btn-row">
-                        <button class="btn small" onclick="addEngPhrase()">记录</button>
-                        <span class="saved-tip" id="engPhraseSaved"></span>
-                        <span style="font-size:12px;color:var(--text-light);margin-left:auto"
-                            id="engPhraseCount"></span>
+                        <div class="composer-bar">
+                            <button class="mic-btn" data-ic="mic" id="micEngPhrase"
+                                onclick="toggleMic('engPhrase','micEngPhrase')"></button>
+                            <span class="saved-tip" id="engPhraseSaved"></span>
+                            <span style="font-size:12px;color:var(--text-light);margin-left:auto"
+                                id="engPhraseCount"></span>
+                            <button class="btn small" onclick="addEngPhrase()" style="margin-left:8px">记录</button>
+                        </div>
                     </div>
                     <div class="entry-list" id="engPhraseList"></div>
                 </div>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="code"></span>技术学习 <span class="badge">记 1 条即完成打卡</span></h2>
-                <div class="input-with-mic">
+            <div class="card collapsible" id="card-tech" data-collapse="g-tech" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="code"></span>技术学习 <span class="badge">记 1
+                        条即完成打卡</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div class="composer">
                     <textarea id="techInput" rows="3" placeholder="今天学了什么？新技术、源码、踩坑、debug 心得、好文档……"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micTech"
-                        onclick="toggleMic('techInput','micTech')"></button>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micTech"
+                            onclick="toggleMic('techInput','micTech')"></button>
+                        <button class="btn" onclick="addTech()">记录</button>
+                    </div>
                 </div>
-                <div class="btn-row"><button class="btn" onclick="addTech()">记录</button></div>
                 <div class="entry-list" id="techList"></div>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="book"></span>知识与阅读</h2>
+            <div class="card collapsible" id="card-knowledge" data-collapse="g-knowledge"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="book"></span>知识与阅读<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <div class="chip-row" id="knowledgeTypeRow">
                     <button class="btn small ghost" data-ktype="播客" onclick="selectKType(this)">播客</button>
                     <button class="btn small ghost" data-ktype="文章" onclick="selectKType(this)">文章</button>
                     <button class="btn small ghost" data-ktype="其他" onclick="selectKType(this)">其他</button>
                 </div>
-                <div class="input-with-mic">
+                <div class="composer">
                     <textarea id="knowledgeInput" rows="3" placeholder="今天听到/看到的有趣内容、金句、启发……"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micKnowledge"
-                        onclick="toggleMic('knowledgeInput','micKnowledge')"></button>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micKnowledge"
+                            onclick="toggleMic('knowledgeInput','micKnowledge')"></button>
+                        <button class="btn" onclick="addKnowledge()">收藏知识</button>
+                    </div>
                 </div>
-                <div class="btn-row"><button class="btn" onclick="addKnowledge()">收藏知识</button></div>
                 <div class="entry-list" id="knowledgeList"></div>
+            </div>
+            <div class="card collapsible" data-module="media" id="card-media" data-collapse="g-media"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="megaphone"></span>自媒体运营<span
+                        class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="mediaTagRow">
+                    <button class="btn small ghost" data-mtag="小红书" onclick="selectMediaTag(this)">小红书</button>
+                    <button class="btn small ghost" data-mtag="抖音" onclick="selectMediaTag(this)">抖音</button>
+                    <button class="btn small ghost" data-mtag="素材整理" onclick="selectMediaTag(this)">素材整理</button>
+                    <button class="btn small ghost" data-mtag="其他" onclick="selectMediaTag(this)">其他</button>
+                </div>
+                <div class="composer">
+                    <textarea id="mediaInput" rows="2" placeholder="发布了什么 / 整理了什么素材 / 灵感选题……"></textarea>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micMedia"
+                            onclick="toggleMic('mediaInput','micMedia')"></button>
+                        <button class="btn" onclick="addMedia()">记录一条</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap" id="mediaFilterRow"></div>
+                <div class="entry-list" id="mediaList"></div>
             </div>
         </div>
 
-        <!-- ============ 记录 ============ -->
+        <!-- ============ 记录（统一时间轴） ============ -->
         <div class="tab-page" id="page-record">
             <div class="card">
-                <h2><span class="tico" data-ic="utensils"></span>饮食记录</h2>
+                <h2><span class="tico" data-ic="list"></span>记录时间轴 <span class="badge" id="recordDateBadge">今天</span>
+                </h2>
+                <div class="rec-search">
+                    <span class="rec-search-ic" data-ic="search"></span>
+                    <input type="text" id="recordSearch" placeholder="搜索这一天的记录…" oninput="renderRecordTimeline()"
+                        aria-label="搜索记录">
+                </div>
+                <div class="chip-row rec-filter" id="recordFilterRow"></div>
+                <div class="timeline" id="recordTimeline"></div>
+            </div>
+            <button class="rec-health-entry" onclick="switchTab('health')">
+                <span class="rhe-ic" data-ic="activity"></span>
+                <span class="rhe-body"><b>健康打卡</b><span>饮食 · 饮水 · 睡眠 · 体重 · 补剂 · 锻炼 · 排便 · 孕期</span></span>
+                <span class="rhe-arrow" data-ic="chevron-right"></span>
+            </button>
+            <button class="rec-health-entry" onclick="switchTab('wealth')">
+                <span class="rhe-ic" data-ic="wallet"></span>
+                <span class="rhe-body"><b>丰盛记录</b><span>今日开支 · 想买清单 · 丰盛汇总</span></span>
+                <span class="rhe-arrow" data-ic="chevron-right"></span>
+            </button>
+        </div>
+
+        <!-- ============ 健康 ============ -->
+        <div class="tab-page" id="page-health">
+            <button class="back-link" onclick="switchTab('record')" aria-label="返回记录"><span
+                    data-ic="chevron-left"></span></button>
+            <div class="card health-hero">
+                <h2><span class="tico" data-ic="activity"></span>今日健康 <span class="badge" id="healthDateBadge">今天</span>
+                </h2>
+                <div class="health-overview" id="healthOverview"></div>
+            </div>
+            <div class="card collapsible" id="card-meals" data-collapse="h-meals" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="utensils"></span>饮食记录<span
+                        class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div id="mealBlocks"></div>
             </div>
-            <div class="card" data-module="snack">
-                <h2><span class="tico" data-ic="apple"></span>加餐</h2>
+            <div class="card collapsible" data-module="snack" data-collapse="h-snack" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="apple"></span>加餐<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <div id="snackList"></div>
                 <div class="btn-row"><button class="btn small" onclick="addSnack()">添加加餐</button></div>
             </div>
-            <div class="card" data-module="water">
-                <h2><span class="tico" data-ic="droplet"></span>喝水记录 <span class="badge" id="waterGoalBadge">目标
-                        2000ml</span></h2>
-                <div class="water-row">
-                    <div class="water-cups" id="waterCups"></div>
+            <div class="card collapsible" data-module="water" id="card-water" data-collapse="h-water"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="droplet"></span>喝水记录 <span class="badge"
+                        id="waterGoalBadge">目标
+                        2000ml</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div class="water-figure">
+                    <span class="water-big"><b id="waterTotal">0</b> ml</span>
+                    <span class="water-goaltext">/ 目标 <b id="waterGoalText">2000</b> ml · <b id="waterPct">0%</b></span>
+                </div>
+                <div class="water-track">
+                    <div class="water-fill" id="waterProgress" style="width:0%"></div>
                 </div>
                 <div class="btn-row water-btns">
                     <button id="waterCupBtn" onclick="addWater(200)">+200ml</button>
                     <button onclick="addWater(500)">+500ml</button>
                     <button onclick="addWater(-1)">撤销</button>
-                    <span class="water-total">已喝 <b id="waterTotal">0</b> ml</span>
                 </div>
-                <div class="water-config">
-                    目标 <input type="number" id="waterGoalInput" min="200" step="100"
-                        onchange="setWaterGoal(this.value)"> ml
-                    · 每杯 <input type="number" id="waterCupInput" min="50" step="50" onchange="setWaterCup(this.value)">
-                    ml
-                </div>
+                <details class="water-settings">
+                    <summary>目标与每杯设置</summary>
+                    <div class="water-config">
+                        目标 <input type="number" id="waterGoalInput" min="200" step="100"
+                            onchange="setWaterGoal(this.value)"> ml
+                        · 每杯 <input type="number" id="waterCupInput" min="50" step="50"
+                            onchange="setWaterCup(this.value)"> ml
+                    </div>
+                </details>
             </div>
-            <div class="card" data-module="supplement">
-                <h2><span class="tico" data-ic="pill"></span>补剂打卡 <span class="badge" id="suppBadge"></span></h2>
+            <div class="card collapsible" data-module="supplement" id="card-supplement" data-collapse="h-supp"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="pill"></span>补剂打卡 <span class="badge"
+                        id="suppBadge"></span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="supp-list" id="suppList"></div>
                 <span class="supp-manage" onclick="manageSupplements()">管理补剂清单</span>
             </div>
-            <div class="card" data-module="exercise">
-                <h2><span class="tico" data-ic="activity"></span>锻炼记录</h2>
-                <div class="input-with-mic">
+            <div class="card collapsible" data-module="exercise" id="card-exercise" data-collapse="h-exercise"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="activity"></span>锻炼记录<span
+                        class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div class="composer">
                     <textarea id="exerciseInput" rows="2" placeholder="记录锻炼了什么？例如：孕妇瑜伽 20 分钟 / 散步 3000 步"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micExercise"
-                        onclick="toggleMic('exerciseInput','micExercise')"></button>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micExercise"
+                            onclick="toggleMic('exerciseInput','micExercise')"></button>
+                        <button class="btn" onclick="addExercise()">记录锻炼</button>
+                    </div>
                 </div>
-                <div class="btn-row"><button class="btn" onclick="addExercise()">记录锻炼</button></div>
                 <div class="entry-list" id="exerciseList"></div>
             </div>
-            <div class="card" data-module="bowel">
-                <h2><span class="tico" data-ic="record"></span>排便记录</h2>
+            <div class="card collapsible" data-module="bowel" id="card-bowel" data-collapse="h-bowel"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="record"></span>排便记录<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <div id="bowelForm"></div>
                 <input type="text" id="bowelNote" placeholder="颜色、形状、其他备注……" style="margin-top:8px">
                 <div class="btn-row"><button class="btn" onclick="addBowel()">记录这次</button></div>
                 <div class="entry-list" id="bowelList"></div>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="scale"></span>体重记录</h2>
+            <div class="card collapsible" id="card-weight" data-collapse="h-weight" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="scale"></span>体重记录<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <div class="btn-row" style="margin-top:0">
                     <input type="number" step="0.1" min="0" inputmode="decimal" id="weightInput" placeholder="今日体重 kg"
                         style="flex:1;min-width:140px">
@@ -196,12 +308,15 @@
                     style="margin-top:8px"></textarea>
                 <div id="weightInfo" style="font-size:13px;color:var(--text-light);margin-top:8px"></div>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="bed"></span>睡眠情况</h2>
+            <div class="card collapsible" id="card-sleep" data-collapse="h-sleep" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="bed"></span>睡眠情况<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <div class="bowel-row" id="sleepRow" style="margin-bottom:0"></div>
             </div>
-            <div class="card" data-module="symptoms">
-                <h2><span class="tico" data-ic="thermometer"></span>孕期反应</h2>
+            <div class="card collapsible" data-module="symptoms" id="card-symptoms" data-collapse="h-symptoms"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="thermometer"></span>孕期反应<span
+                        class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="supp-list" id="symptomList"></div>
                 <button class="supp-add-btn" onclick="addSymptomTag()">+ 自定义标签</button>
             </div>
@@ -209,46 +324,58 @@
 
         <!-- ============ 复盘 ============ -->
         <div class="tab-page" id="page-review">
-            <div class="card collapsible" id="card-review" data-collapse="review">
-                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="moon"></span>每日复盘<span class="chevron-icon" data-ic="chevron-down"></span></h2>
-                <div class="input-with-mic">
+            <div class="card review-hero">
+                <h2><span class="tico" data-ic="moon"></span>今日复盘 <span class="badge" id="reviewDateBadge">今天</span>
+                </h2>
+                <div class="review-overview" id="reviewOverview"></div>
+            </div>
+            <div class="card collapsible" id="card-review" data-collapse="review" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="moon"></span>每日复盘<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
+                <div class="composer">
                     <textarea id="reviewInput" rows="3" placeholder="今天做得好的、可以改进的、明天的重点……"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micReview" title="语音输入"
-                        onclick="toggleMic('reviewInput','micReview')"></button>
-                </div>
-                <div class="btn-row">
-                    <button class="btn" onclick="addReview()">添加复盘</button>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micReview" title="语音输入"
+                            onclick="toggleMic('reviewInput','micReview')"></button>
+                        <button class="btn" onclick="addReview()">添加复盘</button>
+                    </div>
                 </div>
                 <div class="entry-list" id="reviewList"></div>
             </div>
 
-            <div class="card collapsible" id="card-gratitude" data-collapse="gratitude">
+            <div class="card collapsible" id="card-gratitude" data-collapse="gratitude"
+                data-collapse-default="collapsed">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="heart"></span>感恩的心<span class="chevron-icon"
                         data-ic="chevron-down"></span></h2>
-                <div class="input-with-mic">
+                <div class="composer">
                     <textarea id="gratitudeInput" rows="2" placeholder="今天想感谢的人或事……"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micGratitude" title="语音输入"
-                        onclick="toggleMic('gratitudeInput','micGratitude')"></button>
-                </div>
-                <div class="btn-row">
-                    <button class="btn" onclick="addGratitude()">记下这份感恩</button>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micGratitude" title="语音输入"
+                            onclick="toggleMic('gratitudeInput','micGratitude')"></button>
+                        <button class="btn" onclick="addGratitude()">记下这份感恩</button>
+                    </div>
                 </div>
                 <div class="entry-list" id="gratitudeList"></div>
             </div>
 
-            <div class="card collapsible" data-module="pregDiary" data-collapse="diary">
-                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="notebook"></span>日记记录<span class="chevron-icon" data-ic="chevron-down"></span></h2>
-                <div class="input-with-mic">
+            <div class="card collapsible" data-module="pregDiary" data-collapse="diary"
+                data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="notebook"></span>日记记录<span
+                        class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div class="composer">
                     <textarea id="pregDiaryInput" rows="4" placeholder="今天宝宝的胎动、身体的感受、心情、产检记录……"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micPregDiary"
-                        onclick="toggleMic('pregDiaryInput','micPregDiary')"></button>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micPregDiary"
+                            onclick="toggleMic('pregDiaryInput','micPregDiary')"></button>
+                        <button class="btn" onclick="addPregDiary()">添加日记</button>
+                    </div>
                 </div>
-                <div class="btn-row"><button class="btn" onclick="addPregDiary()">添加日记</button></div>
                 <div class="entry-list" id="pregDiaryList"></div>
             </div>
 
-            <div class="card">
-                <h2><span class="tico" data-ic="sunset"></span>今日汇总</h2>
+            <div class="card collapsible" data-collapse="summary" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="sunset"></span>今日汇总<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <div id="dailySummary" class="summary"></div>
                 <div class="btn-row">
                     <button class="btn ghost small" onclick="copySummary()"><span class="bico"
@@ -257,40 +384,28 @@
                 </div>
             </div>
 
-            <div class="card">
-                <h2><span class="tico" data-ic="lightbulb"></span>想法碎片</h2>
+            <div class="card collapsible" data-collapse="thoughts" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="lightbulb"></span>想法碎片<span
+                        class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap" id="thoughtTagRow"></div>
-                <div class="input-with-mic">
+                <div class="composer">
                     <textarea id="thoughtInput" rows="3" placeholder="随时记录闪过的想法…… 点右侧麦克风可语音输入"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micThought"
-                        onclick="toggleMic('thoughtInput','micThought')"></button>
+                    <div class="composer-bar">
+                        <button class="mic-btn" data-ic="mic" id="micThought"
+                            onclick="toggleMic('thoughtInput','micThought')"></button>
+                        <button class="btn" onclick="addThought()">记录想法</button>
+                    </div>
                 </div>
-                <div class="btn-row"><button class="btn" onclick="addThought()">记录想法</button></div>
                 <div style="display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap" id="thoughtFilterRow"></div>
                 <div class="entry-list" id="thoughtList"></div>
             </div>
 
-            <div class="card" data-module="media">
-                <h2><span class="tico" data-ic="megaphone"></span>自媒体运营</h2>
-                <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="mediaTagRow">
-                    <button class="btn small ghost" data-mtag="小红书" onclick="selectMediaTag(this)">小红书</button>
-                    <button class="btn small ghost" data-mtag="抖音" onclick="selectMediaTag(this)">抖音</button>
-                    <button class="btn small ghost" data-mtag="素材整理" onclick="selectMediaTag(this)">素材整理</button>
-                    <button class="btn small ghost" data-mtag="其他" onclick="selectMediaTag(this)">其他</button>
-                </div>
-                <div class="input-with-mic">
-                    <textarea id="mediaInput" rows="2" placeholder="发布了什么 / 整理了什么素材 / 灵感选题……"></textarea>
-                    <button class="mic-btn" data-ic="mic" id="micMedia"
-                        onclick="toggleMic('mediaInput','micMedia')"></button>
-                </div>
-                <div class="btn-row"><button class="btn" onclick="addMedia()">记录一条</button></div>
-                <div style="display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap" id="mediaFilterRow"></div>
-                <div class="entry-list" id="mediaList"></div>
-            </div>
         </div>
 
         <!-- ============ 丰盛 ============ -->
         <div class="tab-page" id="page-wealth">
+            <button class="back-link" onclick="switchTab('record')" aria-label="返回记录"><span
+                    data-ic="chevron-left"></span></button>
             <div class="card">
                 <h2><span class="tico" data-ic="wallet"></span>今日开支 <span class="badge" id="expenseTodayBadge">¥0</span>
                 </h2>
@@ -320,17 +435,20 @@
             </div>
         </div>
 
-        <!-- ============ 数据 ============ -->
+        <!-- ============ 数据中心 ============ -->
         <div class="tab-page" id="page-data">
-            <div class="card">
-                <h2><span class="tico" data-ic="search"></span>搜索记录</h2>
+            <button class="back-link" onclick="switchTab('settings')" aria-label="返回我的"><span
+                    data-ic="chevron-left"></span></button>
+            <div class="card collapsible" data-collapse="d-search" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="search"></span>搜索记录<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <input type="text" id="searchInput" placeholder="搜想法/知识/日记/复盘/技术/开支/餐食/体重/睡眠/反应…… 也可搜类别名"
                     oninput="renderSearch()">
                 <div class="entry-list" id="searchResults"></div>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="clipboard"></span>打卡汇总 <span class="badge" id="weeklyBadge">近 7 天</span>
-                </h2>
+            <div class="card collapsible" data-collapse="d-summary" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="clipboard"></span>打卡汇总 <span class="badge"
+                        id="weeklyBadge">近 7 天</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div style="display:flex;gap:6px;margin-bottom:10px">
                     <button class="filter-chip sel" id="range7" onclick="setWeeklyRange(7)">近 7 天</button>
                     <button class="filter-chip" id="range30" onclick="setWeeklyRange(30)">近 30 天</button>
@@ -343,8 +461,9 @@
                 </div>
                 <p class="ai-hint">复制内容已自动附带一句 AI 分析引导语，直接粘贴给 ChatGPT / 豆包 等即可让它分析「喝水·饮食·运动」与「排便·睡眠·反应」的关联。</p>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="calendar"></span>日历视图 <span class="badge">点击日期查看/补录</span></h2>
+            <div class="card collapsible" data-collapse="d-calendar" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="calendar"></span>日历视图 <span
+                        class="badge">点击日期查看/补录</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="cal-head">
                     <button onclick="shiftMonth(-1)">‹</button>
                     <b id="calTitle"></b>
@@ -352,24 +471,23 @@
                 </div>
                 <div class="cal-grid" id="calGrid"></div>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="trend"></span>体重趋势 <span class="badge">近 30 天</span></h2>
+            <div class="card collapsible" data-collapse="d-weight" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="trend"></span>体重趋势 <span class="badge">近 30
+                        天</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div id="weightChart"></div>
             </div>
-            <div class="card">
-                <h2><span class="tico" data-ic="thermometer"></span>孕期反应历史</h2>
+            <div class="card collapsible" data-collapse="d-symptoms" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="thermometer"></span>孕期反应历史<span
+                        class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="entry-list" id="symptomHistory"></div>
             </div>
-        </div>
-
-        <!-- ============ 设置 ============ -->
-        <div class="tab-page" id="page-settings">
-            <div class="card">
-                <h2><span class="tico" data-ic="drive"></span>备份与恢复</h2>
+            <div class="card collapsible" data-collapse="d-backup" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="drive"></span>备份与恢复<span class="chevron-icon"
+                        data-ic="chevron-down"></span></h2>
                 <div id="backupTip" style="display:none"></div>
                 <div id="storageStatus" class="storage-status"></div>
                 <p class="data-guide">
-                    换手机 / 日常备份，<b>只用 JSON</b>（唯一能完整恢复的格式）。下面「导出表格 / 文档」里的 CSV、Markdown 仅供查看分析，<b>不能用于恢复</b>。
+                    换手机 / 日常备份，<b>只用 JSON</b>（唯一能完整恢复的格式）。CSV、Markdown 仅供查看分析，<b>不能用于恢复</b>。
                 </p>
                 <div class="data-btns">
                     <button class="primary-btn" onclick="shareBackup()"><span class="bico" data-ic="share"></span>备份到
@@ -383,41 +501,94 @@
                     </label>
                 </div>
             </div>
-
-            <div class="card">
-                <h2><span class="tico" data-ic="sliders"></span>个性化设置</h2>
-                <div class="setting-block">
-                    <div class="setting-title">每日习惯 · 排序 / 显示 / 增删</div>
-                    <div id="habitManager"></div>
-                    <div class="habit-add-row">
-                        <input type="text" id="newHabitIcon" maxlength="2" placeholder="😀" class="habit-icon-input">
-                        <input type="text" id="newHabitName" placeholder="新习惯名称" class="habit-name-input">
-                        <button class="btn small" onclick="addCustomHabit()">添加</button>
-                    </div>
-                </div>
-                <div class="setting-block">
-                    <div class="setting-title">模块显示 · 关掉用不到的（如产后可关孕期模块）</div>
-                    <div id="moduleManager"></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2><span class="tico" data-ic="table"></span>导出表格 / 文档 <span class="badge">仅供查看分析，不能用于恢复</span></h2>
-                <div class="data-btns">
-                    <button onclick="exportCSV()"><span class="bico" data-ic="table"></span>打卡汇总 CSV
-                        <span class="desc">每日一行，可用 Excel / Numbers 打开</span></button>
-                    <button onclick="exportWishesCSV()"><span class="bico" data-ic="table"></span>想买清单 CSV
-                        <span class="desc">物品 / 金额 / 状态 / 理由 / 加入与决定日期</span></button>
-                    <button onclick="exportAllModulesMarkdown()"><span class="bico"
-                            data-ic="package"></span>文字模块打包导出（Markdown）
-                        <span class="desc">复盘 / 日记 / 想法 / 英语知识点 · 全部打包导出</span></button>
+            <div class="card collapsible" data-collapse="d-export" data-collapse-default="collapsed">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="table"></span>导出表格 / 文档 <span
+                        class="badge">仅供查看分析</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div class="settings-list">
+                    <button class="settings-row" onclick="exportCSV()">
+                        <span class="sr-ic" data-ic="table"></span>
+                        <span class="sr-body"><b>打卡汇总 CSV</b><span>每日一行，可用 Excel / Numbers 打开</span></span>
+                        <span class="sr-arrow" data-ic="download"></span>
+                    </button>
+                    <button class="settings-row" onclick="exportWishesCSV()">
+                        <span class="sr-ic" data-ic="table"></span>
+                        <span class="sr-body"><b>想买清单 CSV</b><span>物品 / 金额 / 状态 / 理由 / 加入与决定日期</span></span>
+                        <span class="sr-arrow" data-ic="download"></span>
+                    </button>
+                    <button class="settings-row" onclick="exportAllModulesMarkdown()">
+                        <span class="sr-ic" data-ic="package"></span>
+                        <span class="sr-body"><b>文字模块打包（Markdown）</b><span>复盘 / 日记 / 想法 / 英语知识点 · 全部打包</span></span>
+                        <span class="sr-arrow" data-ic="download"></span>
+                    </button>
                 </div>
             </div>
+        </div>
 
+        <!-- ============ 我的（iOS 风格 hub） ============ -->
+        <div class="tab-page" id="page-settings">
+            <div class="profile-card" title="点击修改我的信息" onclick="editTitle()" role="button" tabindex="0"
+                onkeydown="if(event.key==='Enter'||event.key===' '){editTitle(event)}">
+                <span class="profile-avatar" data-ic="leaf"></span>
+                <span class="profile-info">
+                    <b id="profileName">CC GOGOGO</b>
+                    <span id="profileSub">今天，比昨天更好一点</span>
+                </span>
+                <button class="profile-edit" type="button" aria-label="修改我的信息" onclick="editTitle(event)"><span
+                        data-ic="edit"></span></button>
+            </div>
+
+            <div class="settings-group">
+                <button class="ios-row" onclick="switchTab('data')"><span class="ir-ic" data-ic="chart"></span><span
+                        class="ir-label">数据中心</span><span class="ir-arrow" data-ic="chevron-right"></span></button>
+            </div>
+
+            <div class="settings-group">
+                <button class="ios-row" onclick="switchTab('customize')"><span class="ir-ic"
+                        data-ic="sliders"></span><span class="ir-label">个性化定制</span><span class="ir-arrow"
+                        data-ic="chevron-right"></span></button>
+            </div>
+
+            <div class="settings-group">
+                <button class="ios-row" onclick="switchTab('about')"><span class="ir-ic" data-ic="heart"></span><span
+                        class="ir-label">关于</span><span class="ir-arrow" data-ic="chevron-right"></span></button>
+            </div>
+
+            <div class="settings-group">
+                <button class="ios-row danger-row" onclick="clearAll()"><span class="ir-ic" data-ic="trash"></span><span
+                        class="ir-label">清空全部数据</span></button>
+            </div>
+        </div>
+
+        <!-- ============ 个性化定制 ============ -->
+        <div class="tab-page" id="page-customize">
+            <button class="back-link" onclick="switchTab('settings')" aria-label="返回我的"><span
+                    data-ic="chevron-left"></span></button>
+            <div class="card collapsible" data-collapse="c-habits">
+                <h2 id="personalizeHabits" onclick="toggleCard(this)"><span class="tico" data-ic="plan"></span>习惯管理 <span
+                        class="badge">排序 / 显示 / 增删</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div id="habitManager"></div>
+                <div class="habit-add-row">
+                    <input type="text" id="newHabitIcon" maxlength="2" placeholder="😀" class="habit-icon-input">
+                    <input type="text" id="newHabitName" placeholder="新习惯名称" class="habit-name-input">
+                    <button class="btn small" onclick="addCustomHabit()">添加</button>
+                </div>
+            </div>
+            <div class="card collapsible" data-collapse="c-modules">
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="sliders"></span>模块显示 <span
+                        class="badge">关闭只影响显示，不删数据</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
+                <div id="moduleManager"></div>
+            </div>
+        </div>
+
+        <!-- ============ 关于 ============ -->
+        <div class="tab-page" id="page-about">
+            <button class="back-link" onclick="switchTab('settings')" aria-label="返回我的"><span
+                    data-ic="chevron-left"></span></button>
             <div class="card">
-                <div class="data-btns">
-                    <button class="danger" onclick="clearAll()"><span class="bico" data-ic="trash"></span>清空全部数据
-                        <span class="desc">不可恢复，清空前请先备份</span></button>
+                <div class="about-body">
+                    <div class="about-mark" data-ic="leaf"></div>
+                    <h3>CC GOGOGO</h3>
+                    <p>每天记录一点点，让成长自然发生。<br>一个记录生活、管理习惯、沉淀成长的个人 LifeOS。</p>
                 </div>
             </div>
         </div>
@@ -426,14 +597,55 @@
     <nav class="bottom-tabs" id="bottomTabs">
         <button data-nav="home" data-tab="home" data-scroll="top" class="active"><span class="bnico"
                 data-ic="home"></span><span>首页</span></button>
-        <button data-nav="review" data-tab="review" data-scroll="card-review"><span class="bnico"
+        <button data-nav="record" data-tab="record" data-scroll="top"><span class="bnico"
+                data-ic="list"></span><span>记录</span></button>
+        <button data-nav="growth" data-tab="growth" data-scroll="top"><span class="bnico"
+                data-ic="trend"></span><span>成长</span></button>
+        <button data-nav="review" data-tab="review" data-scroll="top"><span class="bnico"
                 data-ic="moon"></span><span>复盘</span></button>
-        <button data-nav="plan" data-tab="home" data-scroll="card-plan"><span class="bnico"
-                data-ic="plan"></span><span>计划</span></button>
-        <button data-nav="mine" data-tab="settings"><span class="bnico" data-ic="user"></span><span>我的</span></button>
+        <button data-nav="mine" data-tab="settings" data-scroll="top"><span class="bnico"
+                data-ic="user"></span><span>我的</span></button>
     </nav>
 
-    <script src="app.js"></script>
+    <button class="fab" id="quickFab" onclick="openQuickRecord()" aria-label="快速记录"><span
+            data-ic="plus"></span></button>
+
+    <div class="sheet-scrim" id="sheetScrim" onclick="closeSheet()"></div>
+    <div class="sheet" id="quickSheet" role="dialog" aria-modal="true" aria-labelledby="quickSheetTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title" id="quickSheetTitle">快速记录</div>
+        <div class="sheet-grid">
+            <button class="sheet-item" onclick="quickRecord('study')"><span data-ic="code"></span>学习</button>
+            <button class="sheet-item" onclick="quickRecord('meal')"><span data-ic="utensils"></span>饮食</button>
+            <button class="sheet-item" onclick="quickRecord('water')"><span data-ic="droplet"></span>喝水</button>
+            <button class="sheet-item" onclick="quickRecord('expense')"><span data-ic="wallet"></span>消费</button>
+            <button class="sheet-item" onclick="quickRecord('thought')"><span data-ic="lightbulb"></span>想法</button>
+            <button class="sheet-item" onclick="quickRecord('diary')"><span data-ic="notebook"></span>日记</button>
+            <button class="sheet-item" onclick="quickRecord('gratitude')"><span data-ic="heart"></span>感恩</button>
+            <button class="sheet-item" onclick="quickRecord('symptom')"><span data-ic="thermometer"></span>孕期</button>
+            <button class="sheet-item" onclick="quickRecord('todo')"><span data-ic="list"></span>Todo</button>
+        </div>
+    </div>
+
+    <div class="sheet" id="titleSheet" role="dialog" aria-modal="true" aria-labelledby="titleSheetTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title" id="titleSheetTitle">修改我的信息</div>
+        <div class="title-editor">
+            <input type="text" id="titleInput" maxlength="40" placeholder="输入新的标题"
+                onkeydown="if(event.key==='Enter')saveTitleFromSheet()">
+            <input type="text" id="profileSubInput" maxlength="60" placeholder="输入副标题（留空使用默认）"
+                onkeydown="if(event.key==='Enter')saveTitleFromSheet()">
+            <div class="title-tip">副标题留空时，会自动显示“已连续记录 N 天”文案。</div>
+            <div class="title-actions">
+                <button class="btn ghost" type="button" onclick="closeSheet()">取消</button>
+                <button class="btn" type="button" onclick="saveTitleFromSheet()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js?v=61"></script>
 </body>
 
 </html>
