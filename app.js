@@ -176,16 +176,16 @@ function setDate(d) {
     renderAll();
 }
 function renderAppTitle() {
-    const t = store.settings.appTitle || "💐 CC GOGOGO";
+    const t = store.settings.appTitle || "CC GOGOGO";
     const el = document.getElementById("appTitle");
     if (el) el.textContent = t;
     document.title = t.replace(/^[^\w\u4e00-\u9fa5]+/, "").trim() || "CC GOGOGO";
 }
 function editTitle() {
-    const cur = store.settings.appTitle || "💐 CC GOGOGO";
+    const cur = store.settings.appTitle || "CC GOGOGO";
     const v = prompt("自定义标题（可含 emoji）：", cur);
     if (v === null) return;
-    store.settings.appTitle = v.trim() || "💐 CC GOGOGO";
+    store.settings.appTitle = v.trim() || "CC GOGOGO";
     save(); renderAppTitle();
 }
 function shiftDate(n) {
@@ -194,13 +194,96 @@ function shiftDate(n) {
     setDate(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"));
 }
 
+/* ==================== 图标（Lucide 内联 SVG，离线可用） ==================== */
+const ICON_PATHS = {
+    home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/>',
+    plan: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    utensils: '<path d="M4 3v7a2 2 0 0 0 4 0V3"/><path d="M6 11v10"/><path d="M18 3c-1.7 0-3 2-3 5v4h3"/><path d="M18 3v18"/>',
+    apple: '<path d="M12 20.9c1.5 0 2.7 1 4 1 2.9 0 5.9-7.9 5.9-12A4.8 4.8 0 0 0 17 5c-2.1 0-3.9 1.4-5 2-1-.6-2.8-2-4.9-2A4.8 4.8 0 0 0 2 9.9C2 14 5 22 8 22c1.2 0 2.4-1.1 4-1.1Z"/><path d="M10 2c1 .5 2 2 2 5"/>',
+    droplet: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+    pill: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/>',
+    activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    record: '<circle cx="12" cy="12" r="8"/>',
+    scale: '<circle cx="12" cy="5" r="2"/><path d="M6 9h12l2 11H4Z"/>',
+    bed: '<path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/>',
+    thermometer: '<path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+    headphones: '<path d="M3 14v3a2 2 0 0 0 2 2h1v-7H5a2 2 0 0 0-2 2Z"/><path d="M21 14v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2Z"/><path d="M4 14a8 8 0 0 1 16 0"/>',
+    code: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
+    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>',
+    moon: '<path d="M12 3a6.4 6.4 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    heart: '<path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6Z"/>',
+    notebook: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h5"/>',
+    sunset: '<path d="M12 10V3"/><path d="m8 6 4 4 4-4"/><path d="M2 18h20"/><path d="M4 14h2"/><path d="M18 14h2"/><path d="M7 14a5 5 0 0 1 10 0"/>',
+    lightbulb: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M8 14a5 5 0 1 1 8 0c-.7.9-1 1.4-1 2H9c0-.6-.3-1.1-1-2Z"/>',
+    megaphone: '<path d="m3 11 15-6v14l-15-6z"/><path d="M4 11v4a1 1 0 0 0 1 1h2"/>',
+    wallet: '<path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3"/><path d="M3 7v12a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3"/><path d="M21 12h-4a2 2 0 0 0 0 4h4"/>',
+    snowflake: '<path d="M12 2v20"/><path d="M2 12h20"/><path d="m5 5 14 14"/><path d="m19 5-14 14"/>',
+    chart: '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M2 20h20"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/>',
+    clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h6"/>',
+    calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/>',
+    trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/>',
+    table: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 3v18"/>',
+    drive: '<path d="M4 14h16"/><path d="m5 14 2-9h10l2 9"/><path d="M4 14v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/><circle cx="8" cy="17" r=".5" fill="currentColor"/>',
+    sliders: '<path d="M4 6h8"/><path d="M18 6h2"/><path d="M4 12h4"/><path d="M12 12h8"/><path d="M4 18h10"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    alert: '<path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/>',
+    square: '<rect x="4" y="4" width="16" height="16" rx="3"/>',
+    copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2"/>',
+    share: '<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m8 6 4-4 4 4"/><path d="M12 2v14"/>',
+    package: '<path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v9"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+    trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+};
+function icon(name) {
+    const p = ICON_PATHS[name]; if (!p) return "";
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+}
+function renderIcons(root) {
+    (root || document).querySelectorAll("[data-ic]").forEach(el => {
+        if (el.dataset.icDone) return;
+        el.innerHTML = icon(el.dataset.ic);
+        el.dataset.icDone = "1";
+    });
+}
+
 /* ==================== Tabs ==================== */
+let activeBottomNav = "home";
+function setBottomNav(navKey) {
+    activeBottomNav = navKey;
+    document.querySelectorAll("#bottomTabs button").forEach(b => b.classList.toggle("active", b.dataset.nav === activeBottomNav));
+}
+function switchTab(tab, navKey) {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+    document.querySelectorAll(".tab-page").forEach(p => p.classList.toggle("active", p.id === "page-" + tab));
+
+    if (navKey) setBottomNav(navKey);
+    else if (tab === "home") setBottomNav("home");
+    else if (tab === "review") setBottomNav("review");
+    else if (tab === "settings") setBottomNav("mine");
+    else setBottomNav(null);
+
+    if (tab === "data") renderHistory();
+    if (tab === "settings") { renderHabitManager(); renderModuleManager(); }
+}
 document.getElementById("tabs").addEventListener("click", e => {
     const btn = e.target.closest("button"); if (!btn) return;
-    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b === btn));
-    document.querySelectorAll(".tab-page").forEach(p => p.classList.toggle("active", p.id === "page-" + btn.dataset.tab));
-    if (btn.dataset.tab === "history") renderHistory();
-    if (btn.dataset.tab === "data") { renderModuleExport(); renderHabitManager(); renderModuleManager(); }
+    switchTab(btn.dataset.tab);
+});
+document.getElementById("bottomTabs").addEventListener("click", e => {
+    const btn = e.target.closest("button"); if (!btn) return;
+    switchTab(btn.dataset.tab, btn.dataset.nav);
+    const target = btn.dataset.scroll;
+    if (!target) return;
+    if (target === "top") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+    }
+    const el = document.getElementById(target);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 /* ==================== 习惯打卡 ==================== */
@@ -238,6 +321,16 @@ function renderHabits() {
     const streak = overallStreak();
     const streakTxt = streak > 1 ? ` · 🔥 连续 ${streak} 天` : "";
     document.getElementById("habitBarText").textContent = (n === total ? "🎉 今日全部完成，太棒啦！" : `已完成 ${n}/${total}`) + streakTxt;
+    renderHeroMetrics(n, total, streak);
+}
+function renderHeroMetrics(done, total, streak) {
+    const h = document.getElementById("heroHabit");
+    if (!h) return;
+    h.textContent = `${done}/${total}`;
+    const expEl = document.getElementById("heroExpense");
+    if (expEl) expEl.textContent = "¥" + fmtMoney(expenseTotal(currentDate));
+    document.getElementById("heroStreak").textContent = `${streak || 0} 天`;
+    document.getElementById("heroWater").textContent = `${waterTotal()} ml`;
 }
 function overallStreak() {
     const today = todayStr();
@@ -547,11 +640,13 @@ function applyCollapsedState() {
 
 /* ==================== 个性化：习惯 / 模块 ==================== */
 const OPTIONAL_MODULES = [
-    { id: "symptoms", name: "🤕 孕期反应" },
-    { id: "pregDiary", name: "🤰 孕期日记" },
-    { id: "media", name: "📣 自媒体运营" },
-    { id: "snack", name: "🍎 加餐" },
-    { id: "bowel", name: "💩 排便记录" },
+    { id: "symptoms", name: "孕期反应" },
+    { id: "pregDiary", name: "日记记录" },
+    { id: "media", name: "自媒体运营" },
+    { id: "snack", name: "加餐" },
+    { id: "bowel", name: "排便记录" },
+    { id: "supplement", name: "补剂打卡" },
+    { id: "exercise", name: "锻炼记录" },
 ];
 function orderedHabitDefs() {
     const order = store.settings.habitOrder || [];
@@ -1051,6 +1146,8 @@ function delExpense(i) { removeWithUndo(day().expenses, i, "开支", () => { ren
 function renderExpenses() {
     const list = day().expenses;
     document.getElementById("expenseTodayBadge").textContent = "¥" + fmtMoney(expenseTotal(currentDate));
+    const expEl = document.getElementById("heroExpense");
+    if (expEl) expEl.textContent = "¥" + fmtMoney(expenseTotal(currentDate));
     document.getElementById("expenseList").innerHTML = list.length
         ? list.map((e, i) => `<div class="entry"><span class="tag">${catIcon(e.cat)} ${e.cat}</span><b>¥${fmtMoney(e.amount)}</b>${e.note ? " · " + esc(e.note) : ""}
 <div class="meta"><span>${e.time}</span></div>
@@ -1147,12 +1244,20 @@ function toggleMic(targetId, btnId) {
     };
     recognition.onend = stopMic;
     recognition.start();
-    recBtn.classList.add("recording");
-    recBtn.textContent = "⏹";
+    setMicUI(recBtn, true);
 }
 function stopMic() {
-    if (recBtn) { recBtn.classList.remove("recording"); recBtn.textContent = "🎙"; }
+    setMicUI(recBtn, false);
     recognition = null; recTarget = null; recBtn = null;
+}
+function setMicUI(btn, recording) {
+    if (!btn) return;
+    btn.classList.toggle("recording", recording);
+    if (btn.classList.contains("text-btn")) {
+        btn.textContent = recording ? "停止录音" : "语音输入";
+    } else {
+        btn.innerHTML = icon(recording ? "square" : "mic");
+    }
 }
 
 /* ==================== 日历 ==================== */
@@ -1185,7 +1290,8 @@ function renderCalendar() {
 }
 function calPick(ds) {
     setDate(ds);
-    document.querySelector('nav.tabs button[data-tab="today"]').click();
+    const homeTab = document.querySelector('nav.tabs button[data-tab="home"]');
+    if (homeTab) homeTab.click();
 }
 
 /* ==================== 统计辅助 ==================== */
@@ -1278,17 +1384,17 @@ function renderSearch() {
 }
 function typeToTab(type) {
     type = type || "";
-    if (type.startsWith("想法") || type.startsWith("知识") || type.startsWith("运营")) return "thoughts";
-    if (type === "技术") return "tech";
-    if (type.startsWith("英语")) return "english";
-    if (type === "复盘" || type === "感恩" || type === "任务") return "today";
+    if (type.startsWith("想法") || type.startsWith("运营")) return "review";
+    if (type.startsWith("知识")) return "growth";
+    if (type === "技术") return "growth";
+    if (type.startsWith("英语")) return "growth";
+    if (type === "复盘" || type === "感恩" || type === "任务") return "home";
     if (type.startsWith("开支") || type === "想买") return "wealth";
-    return "pregnancy"; // 餐食/加餐/排便/体重/睡眠/孕期反应/孕期日记/锻炼/补剂
+    return "record"; // 餐食/加餐/排便/体重/睡眠/孕期反应/日记/锻炼/补剂
 }
 function jumpToRecord(d, tab) {
     setDate(d);
-    const btn = document.querySelector('nav.tabs button[data-tab="' + tab + '"]');
-    if (btn) btn.click();
+    switchTab(tab);
 }
 
 /* ==================== 打卡汇总 ==================== */
@@ -1691,8 +1797,8 @@ function renderToday() {
     renderWeight(); renderSleep(); renderSymptoms();
 }
 function renderAll() {
-    renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderModuleExport(); renderBackupTip();
-    if (document.getElementById("page-history").classList.contains("active")) renderHistory();
+    renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderBackupTip();
+    if (document.getElementById("page-data").classList.contains("active")) renderHistory();
 }
 
 /* ==================== 备份提醒 ==================== */
@@ -1709,7 +1815,8 @@ function renderBackupTip() {
         else overdue = Math.round((new Date(todayStr()) - new Date(last)) / 86400000);
     }
     const need = hasData && overdue >= 3;
-    document.querySelector('nav.tabs button[data-tab="data"]').classList.toggle("need-backup", need);
+    const mineBtn = document.querySelector('#bottomTabs button[data-nav="mine"]');
+    if (mineBtn) mineBtn.classList.toggle("need-backup", need);
     const tip = document.getElementById("backupTip");
     if (!tip) return;
     if (!hasData) { tip.style.display = "none"; return; }
@@ -1759,11 +1866,13 @@ window.addEventListener("focus", checkDayRollover);
     const now = new Date();
     calYear = now.getFullYear(); calMonth = now.getMonth();
     document.getElementById("datePicker").value = currentDate;
+    renderIcons();
     selectKType(document.querySelector('#knowledgeTypeRow button[data-ktype="播客"]'));
     selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
     renderThoughtTagRow();
     renderAppTitle();
     renderAll();
+    switchTab("home", "home");
     applyCollapsedState();
     applyModuleVisibility();
     ensurePersistentStorage();
