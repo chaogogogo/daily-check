@@ -227,19 +227,18 @@
                 </h2>
                 <div class="health-overview" id="healthOverview"></div>
             </div>
-            <div class="card collapsible" id="card-meals" data-collapse="h-meals" data-collapse-default="collapsed">
+            <div class="card collapsible" id="card-meals" data-collapse="h-meals">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="utensils"></span>饮食记录<span
                         class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div id="mealBlocks"></div>
             </div>
-            <div class="card collapsible" data-module="snack" data-collapse="h-snack" data-collapse-default="collapsed">
+            <div class="card collapsible" data-module="snack" data-collapse="h-snack">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="apple"></span>加餐<span class="chevron-icon"
                         data-ic="chevron-down"></span></h2>
                 <div id="snackList"></div>
                 <div class="btn-row"><button class="btn small" onclick="addSnack()">添加加餐</button></div>
             </div>
-            <div class="card collapsible" data-module="water" id="card-water" data-collapse="h-water"
-                data-collapse-default="collapsed">
+            <div class="card collapsible" data-module="water" id="card-water" data-collapse="h-water">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="droplet"></span>喝水记录 <span class="badge"
                         id="waterGoalBadge">目标
                         2000ml</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
@@ -265,15 +264,13 @@
                     </div>
                 </details>
             </div>
-            <div class="card collapsible" data-module="supplement" id="card-supplement" data-collapse="h-supp"
-                data-collapse-default="collapsed">
+            <div class="card collapsible" data-module="supplement" id="card-supplement" data-collapse="h-supp">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="pill"></span>补剂打卡 <span class="badge"
                         id="suppBadge"></span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="supp-list" id="suppList"></div>
                 <span class="supp-manage" onclick="manageSupplements()">管理补剂清单</span>
             </div>
-            <div class="card collapsible" data-module="exercise" id="card-exercise" data-collapse="h-exercise"
-                data-collapse-default="collapsed">
+            <div class="card collapsible" data-module="exercise" id="card-exercise" data-collapse="h-exercise">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="activity"></span>锻炼记录<span
                         class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="composer">
@@ -286,8 +283,7 @@
                 </div>
                 <div class="entry-list" id="exerciseList"></div>
             </div>
-            <div class="card collapsible" data-module="bowel" id="card-bowel" data-collapse="h-bowel"
-                data-collapse-default="collapsed">
+            <div class="card collapsible" data-module="bowel" id="card-bowel" data-collapse="h-bowel">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="record"></span>排便记录<span class="chevron-icon"
                         data-ic="chevron-down"></span></h2>
                 <div id="bowelForm"></div>
@@ -295,7 +291,7 @@
                 <div class="btn-row"><button class="btn" onclick="addBowel()">记录这次</button></div>
                 <div class="entry-list" id="bowelList"></div>
             </div>
-            <div class="card collapsible" id="card-weight" data-collapse="h-weight" data-collapse-default="collapsed">
+            <div class="card collapsible" id="card-weight" data-collapse="h-weight">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="scale"></span>体重记录<span class="chevron-icon"
                         data-ic="chevron-down"></span></h2>
                 <div class="btn-row" style="margin-top:0">
@@ -308,13 +304,12 @@
                     style="margin-top:8px"></textarea>
                 <div id="weightInfo" style="font-size:13px;color:var(--text-light);margin-top:8px"></div>
             </div>
-            <div class="card collapsible" id="card-sleep" data-collapse="h-sleep" data-collapse-default="collapsed">
+            <div class="card collapsible" id="card-sleep" data-collapse="h-sleep">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="bed"></span>睡眠情况<span class="chevron-icon"
                         data-ic="chevron-down"></span></h2>
                 <div class="bowel-row" id="sleepRow" style="margin-bottom:0"></div>
             </div>
-            <div class="card collapsible" data-module="symptoms" id="card-symptoms" data-collapse="h-symptoms"
-                data-collapse-default="collapsed">
+            <div class="card collapsible" data-module="symptoms" id="card-symptoms" data-collapse="h-symptoms">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="thermometer"></span>孕期反应<span
                         class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="supp-list" id="symptomList"></div>
