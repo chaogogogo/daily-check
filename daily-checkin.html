@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="icon-180.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=69">
+    <link rel="stylesheet" href="style.css?v=71">
 </head>
 
 <body>
@@ -55,7 +55,8 @@
         <div class="not-today-tip" id="notTodayTip" style="display:none">
             <span class="ntt-label"><span class="ntt-ic" data-ic="calendar"></span><span
                     id="notTodayText"></span></span>
-            <button class="ntt-back" onclick="setDate(todayStr())">回到今天</button>
+            <button class="ntt-back" onclick="setDate(todayStr())" aria-label="回到今天"><span
+                    data-ic="calendar"></span></button>
         </div>
     </header>
 
@@ -75,9 +76,9 @@
                         </div>
                     </div>
                     <div class="hero-metrics" id="heroMetrics">
-                        <div class="hero-metric"><b id="heroPending">0 项</b><span>待完成</span></div>
-                        <div class="hero-metric"><b id="heroWater">0 ml</b><span>今日喝水</span></div>
                         <div class="hero-metric"><b id="heroWeight">—</b><span>今日体重</span></div>
+                        <div class="hero-metric"><b id="heroWater">0 ml</b><span>今日喝水</span></div>
+                        <div class="hero-metric"><b id="heroExpense">¥0</b><span>今日花费</span></div>
                     </div>
                 </div>
             </div>
@@ -321,6 +322,7 @@
                 <textarea id="weightNote" rows="2" placeholder="体重变化心得（可选）：如吃多了 / 水肿 / 运动后……"
                     style="margin-top:8px"></textarea>
                 <div id="weightInfo" style="font-size:13px;color:var(--text-light);margin-top:8px"></div>
+                <div class="entry-list" id="weightHistory"></div>
             </div>
             <div class="card collapsible" id="card-sleep" data-collapse="h-sleep">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="bed"></span>睡眠情况<span class="chevron-icon"
@@ -709,7 +711,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=69"></script>
+    <script src="app.js?v=71"></script>
 </body>
 
 </html>
