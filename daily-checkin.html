@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#355a4f">
     <link rel="apple-touch-icon" href="icon-180.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=65">
+    <link rel="stylesheet" href="style.css?v=66">
 </head>
 
 <body>
@@ -93,7 +93,9 @@
             </div>
 
             <div class="card" id="card-tasks">
-                <h2><span class="tico" data-ic="list"></span>临时任务</h2>
+                <h2><span class="tico" data-ic="list"></span>临时任务<button class="card-link"
+                        onclick="openTodoCenter()">全部待办<span id="allTodoCount"></span><span class="card-link-ic"
+                            data-ic="chevron-right"></span></button></h2>
                 <div class="task-list" id="taskList"></div>
                 <div class="task-add">
                     <input type="text" id="taskInput" placeholder="添加今天的临时任务，回车确认…"
@@ -106,6 +108,23 @@
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="clock"></span>最近动态 <span class="badge">最新 3
                         条</span><span class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="timeline" id="timeline"></div>
+            </div>
+        </div>
+
+        <!-- ============ 全部待办 ============ -->
+        <div class="tab-page" id="page-todos">
+            <button class="back-link" onclick="switchTab('home')" aria-label="返回首页"><span
+                    data-ic="chevron-left"></span></button>
+            <div class="card todo-center-hero">
+                <h2><span class="tico" data-ic="list"></span>全部待办</h2>
+                <p>集中处理所有日期留下的临时任务。完成后会记录实际完成日期，也可以随时修改或恢复。</p>
+                <div class="todo-center-metrics">
+                    <div><b id="todoPendingCount">0</b><span>未完成</span></div>
+                    <div><b id="todoDoneCount">0</b><span>已完成</span></div>
+                </div>
+            </div>
+            <div class="card">
+                <div id="todoCenterList"></div>
             </div>
         </div>
 
@@ -380,7 +399,8 @@
             </div>
 
             <div class="card collapsible" data-collapse="thoughts" data-collapse-default="collapsed">
-                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="lightbulb"></span>想法碎片<span
+                <h2 onclick="toggleCard(this)"><span class="tico" data-ic="lightbulb"></span>想法碎片 <span
+                        class="badge">标签可多选</span><span
                         class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap" id="thoughtTagRow"></div>
                 <div class="composer">
@@ -641,7 +661,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=65"></script>
+    <script src="app.js?v=66"></script>
 </body>
 
 </html>
