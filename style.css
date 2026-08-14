@@ -1804,8 +1804,49 @@ nav.tabs button.need-backup::after {
 .wish-reason {
     font-size: 13px;
     color: var(--text-light);
-    margin-top: 6px;
     line-height: 1.5;
+}
+
+.wish-reason-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.wish-reason-row .wish-reason {
+    flex: 0 1 auto;
+}
+
+.wish-reason-row .wish-reason.empty {
+    color: #b8aea6;
+    font-style: italic;
+}
+
+.wish-reason-edit {
+    display: inline-grid;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+.wish-reason-edit:hover,
+.wish-reason-edit:focus-visible {
+    outline: none;
+    background: var(--accent-light);
+    color: var(--primary-dark);
+}
+
+.wish-reason-edit svg {
+    width: 14px;
+    height: 14px;
 }
 
 .entry .tag.tag-good {
@@ -4566,27 +4607,6 @@ body {
     border-bottom: 0;
 }
 
-.task-completed-date {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    margin-top: 7px;
-    color: var(--text-light);
-    font-size: 11px;
-}
-
-.task-completed-date input {
-    width: auto;
-    min-height: 30px;
-    padding: 4px 7px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: #fff;
-    color: var(--text);
-    font: inherit;
-    font-size: 12px;
-}
-
 .todo-done-toggle {
     display: flex;
     align-items: center;
@@ -4627,5 +4647,200 @@ body {
 
     .todo-center-heading span {
         text-align: left;
+    }
+}
+
+/* ==================== 统一文本编辑 / 图标操作 ==================== */
+.entry-has-actions {
+    position: relative;
+    padding-right: 86px;
+}
+
+.entry-actions {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.entry-actions button,
+.task-actions button {
+    display: inline-grid;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    place-items: center;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-3, var(--text-light));
+    cursor: pointer;
+    transition: color .16s ease, background .16s ease, transform .12s ease;
+}
+
+.entry-actions button:hover,
+.entry-actions button:focus-visible,
+.task-actions button:hover,
+.task-actions button:focus-visible {
+    outline: none;
+    background: var(--accent-light);
+    color: var(--primary-dark);
+}
+
+.entry-actions button:active,
+.task-actions button:active {
+    transform: scale(.92);
+}
+
+.entry-actions svg,
+.task-actions svg {
+    width: 17px;
+    height: 17px;
+}
+
+.entry-actions .entry-delete:hover,
+.entry-actions .entry-delete:focus-visible,
+.task-actions .task-del:hover,
+.task-actions .task-del:focus-visible {
+    background: #fbeceb;
+    color: #b75a51;
+}
+
+.task-item .task-text:not(.task-text-readonly) {
+    cursor: text;
+}
+
+.task-item .task-text:not(.task-text-readonly):hover {
+    color: var(--primary-dark);
+}
+
+.task-text-readonly {
+    cursor: default;
+}
+
+.task-item.done .task-actions {
+    align-self: center;
+}
+
+.editor-sheet {
+    padding-left: clamp(18px, 5vw, 28px);
+    padding-right: clamp(18px, 5vw, 28px);
+}
+
+.editor-hint {
+    margin: -7px 0 14px;
+    color: var(--color-text-tertiary, var(--text-light));
+    font-size: 12px;
+    line-height: 1.55;
+    text-align: center;
+}
+
+#editorTextField {
+    position: relative;
+}
+
+#editorTextField[hidden],
+.editor-date-field[hidden] {
+    display: none;
+}
+
+#editorTextarea {
+    display: block;
+    width: 100%;
+    min-height: 220px;
+    max-height: 52vh;
+    padding: 15px 16px 34px;
+    resize: vertical;
+    border: 1px solid var(--color-divider, var(--border));
+    border-radius: 16px;
+    background: var(--color-surface-soft, #fbfaf7);
+    color: var(--color-text, var(--text));
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+#editorTextarea:focus {
+    outline: none;
+    border-color: var(--color-primary, var(--primary));
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(63, 118, 87, .13);
+}
+
+.editor-count {
+    position: absolute;
+    right: 13px;
+    bottom: 9px;
+    color: var(--color-text-tertiary, var(--text-light));
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.editor-date-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border: 1px solid var(--color-divider, var(--border));
+    border-radius: 16px;
+    background: var(--color-surface-soft, #fbfaf7);
+    color: var(--color-text-secondary, var(--text-light));
+    font-size: 13px;
+}
+
+.editor-date-field input {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-divider, var(--border));
+    border-radius: 12px;
+    background: #fff;
+    color: var(--color-text, var(--text));
+    font: inherit;
+}
+
+.editor-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.editor-actions .btn {
+    min-height: 46px;
+}
+
+.symptom-quick-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.quick-diary-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-style: solid;
+    color: var(--primary-dark);
+}
+
+.quick-diary-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+@media (max-width: 480px) {
+    .task-actions {
+        flex-direction: row;
+        align-items: center;
+        gap: 2px;
+    }
+
+    #editorTextarea {
+        min-height: 190px;
     }
 }
