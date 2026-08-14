@@ -1112,13 +1112,41 @@ table.stat-table th {
     border-radius: 10px;
     font-size: 13px;
     color: var(--text-light);
-    cursor: pointer;
     user-select: none;
 }
 
-.list-toggle .lt-caret {
+.list-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #dce7df;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .82);
     color: var(--primary-dark);
-    font-weight: 600;
+    cursor: pointer;
+    transition: transform .2s ease, border-color .15s ease, background .15s ease;
+}
+
+.list-toggle-icon svg {
+    width: 17px;
+    height: 17px;
+}
+
+.list-toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.list-toggle-icon:hover {
+    border-color: #bdd3c4;
+    background: #f4faf5;
+}
+
+.list-toggle-icon:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(63, 118, 87, .14);
 }
 
 .search-hit:active {
@@ -2965,16 +2993,24 @@ header .not-today-tip .ntt-ic {
 }
 
 header .not-today-tip .ntt-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
     border: 0;
     background: var(--primary);
     color: #fff;
     border-radius: 999px;
-    padding: 5px 14px;
-    font-size: 13px;
-    font-weight: 600;
+    padding: 0;
     font-family: inherit;
     cursor: pointer;
     transition: background .18s ease, transform .18s ease;
+}
+
+header .not-today-tip .ntt-back svg {
+    width: 16px;
+    height: 16px;
 }
 
 header .not-today-tip .ntt-back:hover {
@@ -5191,5 +5227,179 @@ body {
 
     .rv-recent-item {
         padding-right: 78px;
+    }
+}
+
+/* ==================== 复盘 / 记录：统一历史文本卡片 ==================== */
+.history-entry {
+    border: 1px solid #e1e9e3;
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #fbfdfb 100%);
+    box-shadow: 0 5px 15px rgba(53, 90, 79, .05);
+    color: var(--color-text, var(--text));
+}
+
+.entry.history-entry {
+    margin-bottom: 10px;
+    padding: 14px 86px 13px 14px;
+}
+
+.history-entry-text {
+    color: var(--color-text, var(--text));
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.history-entry-kicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 7px;
+    color: var(--primary-dark);
+    font-size: 12px;
+    font-weight: 680;
+    letter-spacing: .01em;
+}
+
+.history-entry .history-entry-kicker .tag {
+    margin-bottom: 0;
+}
+
+.history-entry-value {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 2px 0 7px;
+    color: var(--color-text, var(--text));
+    font-size: 25px;
+    font-weight: 720;
+    line-height: 1.2;
+}
+
+.history-entry-value i {
+    color: var(--color-text-tertiary, var(--text-light));
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 600;
+}
+
+.history-entry-value-small {
+    font-size: 16px;
+}
+
+.health-history-entry {
+    margin-top: 10px;
+}
+
+.history-entry .meta {
+    margin-top: 9px;
+    color: var(--color-text-tertiary, var(--text-light));
+}
+
+.history-entry .tag {
+    margin-bottom: 7px;
+    border: 1px solid #dce9df;
+    background: #f0f7f2;
+    color: var(--primary-dark);
+    line-height: 1.8;
+}
+
+.history-entry .entry-actions {
+    top: 9px;
+    right: 9px;
+    padding: 2px;
+    border: 1px solid #e7ede8;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, .9);
+    box-shadow: 0 3px 9px rgba(53, 90, 79, .055);
+}
+
+.history-entry .entry-actions button {
+    width: 30px;
+    height: 30px;
+}
+
+.rv-recent-item,
+.rv-recent-item:last-child {
+    border-color: #e1e9e3;
+}
+
+.tl-item .tl-card.history-entry {
+    padding: 12px 14px;
+    border-color: #e1e9e3;
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #fbfdfb 100%);
+    box-shadow: 0 5px 15px rgba(53, 90, 79, .05);
+}
+
+.tl-item .tl-card.history-text-entry {
+    padding-top: 13px;
+    padding-bottom: 13px;
+}
+
+.tl-item .history-entry .tl-title {
+    color: var(--primary-dark);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: .01em;
+}
+
+.tl-item .history-entry .tl-note {
+    margin-top: 7px;
+    color: var(--color-text, var(--text));
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.tl-item .history-entry .tl-note:not(:last-child) {
+    margin-bottom: 2px;
+}
+
+.history-expand-hint {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 7px;
+    color: var(--color-primary, var(--primary));
+}
+
+.history-expand-hint svg {
+    width: 16px;
+    height: 16px;
+    transition: transform .2s ease;
+}
+
+.tl-card.tl-expanded .history-expand-hint svg {
+    transform: rotate(180deg);
+}
+
+.tl-card[role="button"]:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(63, 118, 87, .12);
+}
+
+.tl-card[role="button"] {
+    cursor: pointer;
+}
+
+@media (max-width: 480px) {
+    .entry.history-entry {
+        padding: 13px 78px 12px 13px;
+    }
+
+    .tl-item {
+        gap: 7px;
+    }
+
+    .tl-item .tl-time {
+        margin-right: 2px;
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+
+    .tl-item .tl-card.history-entry {
+        padding-right: 12px;
+        padding-left: 12px;
     }
 }

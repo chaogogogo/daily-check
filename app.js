@@ -764,10 +764,10 @@ function renderHeroMetrics(done, total, streak) {
     setTxt("heroRingText", (done === total && total) ? "今日全部完成 🎉" : `今日计划 ${done}/${total}`);
     setTxt("heroGreeting", heroGreeting());
     setTxt("heroStreakLine", streak > 0 ? `🔥 已连续记录 ${streak} 天` : "完成任意 1 项，开启连续记录");
-    setMetric("heroPending", Math.max(total - done, 0), "项");
-    setMetric("heroWater", waterTotal(), "ml");
     const weight = day(currentDate).weight;
     setMetric("heroWeight", weight && weight.value != null ? weight.value : "—", weight && weight.value != null ? "kg" : "");
+    setMetric("heroWater", waterTotal(), "ml");
+    setMetric("heroExpense", "¥" + fmtMoney(expenseTotal(currentDate)), "");
 }
 function heroGreeting() {
     const hr = new Date().getHours();
@@ -887,7 +887,7 @@ function renderEnglish() {
     });
     document.getElementById("engPhraseCount").textContent = items.length ? `已积累 ${items.length} 条` : "";
     renderCollapsibleList("engPhraseList", "engPhrase", "知识点", items.length,
-        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.p.text)}
+        items.map(x => `<div class="entry entry-has-actions history-entry history-text-entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span><div class="history-entry-text">${escMultiline(x.p.text)}</div>
 <div class="meta"><span>${x.d} ${x.p.time}</span></div>
 ${entryActions(`editRecordText('phrase','${x.d}',${x.i})`, `delEngPhrase('${x.d}',${x.i})`, "编辑英语知识点", "删除英语知识点")}</div>`).join(""),
         `<div class="empty-tip">还没有知识点，听到好表达随手记一条吧 ✨</div>`);
@@ -1158,39 +1158,39 @@ function collectTimeline(d) {
     });
     o.waterLogs.forEach(l => ev.push({ time: l.time, label: `💧 喝水 ${l.amount}ml`, ref: l, cat: "health" }));
     ENG_TASKS.forEach(t => {
-        if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${trunc(p.text, 18)}`, ref: p, cat: "study" }); });
+        if (t.id === "phrase") o.english.phrases.forEach(p => { if (p.time) ev.push({ time: p.time, label: `✍️ 英语知识点：${p.text}`, ref: p, cat: "study", textRecord: true }); });
         else {
             const rec = o.english.tasks[t.id];
             if (rec && rec.count > 0) ev.push({ time: rec.time, label: `${t.icon} 英语：${t.name}${rec.count > 1 ? ` ×${rec.count}` : ""}`, ref: rec, cat: "study" });
-            (rec && rec.notes || []).forEach(n => { if (n.time) ev.push({ time: n.time, label: `✍️ 英语[${t.name}]：${trunc(n.text, 18)}`, ref: n, cat: "study" }); });
+            (rec && rec.notes || []).forEach(n => { if (n.time) ev.push({ time: n.time, label: `✍️ 英语[${t.name}]：${n.text}`, ref: n, cat: "study", textRecord: true }); });
         }
     });
     allTaskRecords().forEach(({ t }) => {
-        if (t.done && t.completedDate === timelineDate) ev.push({ time: t.completedTime || "", label: `📌 完成任务：${trunc(t.text, 18)}`, ref: t, timeField: "completedTime", cat: "life" });
+        if (t.done && t.completedDate === timelineDate) ev.push({ time: t.completedTime || "", label: `📌 完成任务：${t.text}`, ref: t, timeField: "completedTime", cat: "life", textRecord: true });
     });
     Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}`, ref: s, cat: "health" }); });
-    o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${trunc(r.text, 18)}`, ref: r, cat: "life" }); });
-    o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${trunc(g.text, 18)}`, ref: g, cat: "life" }));
+    o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${r.text}`, ref: r, cat: "life", textRecord: true }); });
+    o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${g.text}`, ref: g, cat: "life", textRecord: true }));
     Object.entries(o.meals).forEach(([mid, m]) => {
         const meal = MEALS.find(x => x.id === mid);
-        if (meal && m.time && (m.food || m.rating)) ev.push({ time: m.time, label: `${meal.icon} 记录${meal.name}${m.food ? "：" + trunc(m.food, 14) : ""}`, ref: m, cat: "diet" });
+        if (meal && m.time && (m.food || m.rating)) ev.push({ time: m.time, label: `${meal.icon} 记录${meal.name}${m.food ? "：" + m.food : ""}`, ref: m, cat: "diet", textRecord: !!m.food });
     });
-    o.snacks.forEach(s => { if (s.time && (s.food || s.rating)) ev.push({ time: s.time, label: `🍎 加餐${s.food ? "：" + trunc(s.food, 14) : ""}`, ref: s, cat: "diet" }); });
-    o.exercises.forEach(x => ev.push({ time: x.time, label: `🏃 锻炼：${trunc(x.text, 18)}`, ref: x, cat: "health" }));
+    o.snacks.forEach(s => { if (s.time && (s.food || s.rating)) ev.push({ time: s.time, label: `🍎 加餐${s.food ? "：" + s.food : ""}`, ref: s, cat: "diet", textRecord: !!s.food }); });
+    o.exercises.forEach(x => ev.push({ time: x.time, label: `🏃 锻炼：${x.text}`, ref: x, cat: "health", textRecord: true }));
     o.bowels.forEach(b => { const extra = [b.amount ? "量·" + b.amount : "", b.honey === true ? "蜂蜜露" : ""].filter(Boolean).join(" "); ev.push({ time: b.time, label: `💩 排便${extra ? "（" + extra + "）" : ""}`, ref: b, cat: "health" }); });
-    o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${trunc(p.text, 18)}`, ref: p, cat: "pregnancy" }); });
-    if (o.weight && o.weight.time) ev.push({ time: o.weight.time, label: `⚖️ 体重 ${o.weight.value} kg${o.weight.note ? "·" + trunc(o.weight.note, 12) : ""}`, ref: o.weight, cat: "health" });
+    o.pregDiaries.forEach(p => { if (p.time) ev.push({ time: p.time, label: `🤰 孕期日记：${p.text}`, ref: p, cat: "pregnancy", textRecord: true }); });
+    if (o.weight && o.weight.time) ev.push({ time: o.weight.time, label: `⚖️ 体重 ${o.weight.value} kg${o.weight.note ? "：" + o.weight.note : ""}`, ref: o.weight, cat: "health", textRecord: !!o.weight.note });
     if (o.sleep && o.sleep.time) {
         const sLabel = { good: "好 😊", mid: "一般 😐", bad: "差 😵" };
         ev.push({ time: o.sleep.time, label: `😴 睡眠：${sLabel[o.sleep.quality] || "一般 😐"}`, ref: o.sleep, cat: "health" });
     }
     o.symptoms.forEach(s => ev.push({ time: s.time, label: `🤕 孕期反应：${s.tag}`, ref: s, cat: "pregnancy" }));
-    o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${trunc(t.text, 18)}`, ref: t, cat: "study" }));
-    o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}`, ref: m, cat: "inspiration" }));
-    o.thoughts.forEach(t => { const tags = thoughtTagsOf(t); ev.push({ time: t.time, label: `💭 想法${tags.length ? "[" + tags.join("/") + "]" : ""}：${trunc(t.text, 18)}`, ref: t, cat: "inspiration" }); });
-    o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}`, ref: k, cat: "study" }));
-    o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "·" + trunc(e.note, 10) : ""}`, ref: e, cat: "consume" }));
-    o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${trunc(w.item, 14)}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`, ref: w, cat: "consume" }); });
+    o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${t.text}`, ref: t, cat: "study", textRecord: true }));
+    o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${m.text}`, ref: m, cat: "inspiration", textRecord: true }));
+    o.thoughts.forEach(t => { const tags = thoughtTagsOf(t); ev.push({ time: t.time, label: `💭 想法${tags.length ? "[" + tags.join("/") + "]" : ""}：${t.text}`, ref: t, cat: "inspiration", textRecord: true }); });
+    o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${k.text}`, ref: k, cat: "study", textRecord: true }));
+    o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "：" + e.note : ""}`, ref: e, cat: "consume", textRecord: !!e.note }));
+    o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${w.item}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`, ref: w, cat: "consume", textRecord: true }); });
     ev.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
     return ev;
 }
@@ -1211,7 +1211,8 @@ function renderTimeline() {
         const idx = e.label.indexOf("：");
         const title = idx >= 0 ? e.label.slice(0, idx) : e.label;
         const note = idx >= 0 ? e.label.slice(idx + 1) : "";
-        return `<div class="home-feed-item"><span class="home-feed-time">${e.time || "--:--"}</span><div class="home-feed-body"><div class="home-feed-title">${esc(title)}</div>${note ? `<div class="home-feed-note">${esc(note)}</div>` : ""}</div></div>`;
+        const preview = note ? trunc(note.replace(/\s+/g, " "), 42) : "";
+        return `<div class="home-feed-item"><span class="home-feed-time">${e.time || "--:--"}</span><div class="home-feed-body"><div class="home-feed-title">${esc(title)}</div>${preview ? `<div class="home-feed-note">${esc(preview)}</div>` : ""}</div></div>`;
     }).join("");
     const toggle = `<button type="button" class="tl-more" onclick="switchTab('record')">查看今天全部 ${ev.length} 条<span class="tl-more-ic" data-ic="chevron-right"></span></button>`;
     el.innerHTML = rows + toggle;
@@ -1243,6 +1244,11 @@ function renderRecordFilterRow() {
     row.innerHTML = RECORD_FILTERS.map(f =>
         `<button type="button" class="filter-chip ${recordFilter === f.id ? "sel" : ""}" onclick="setRecordFilter('${f.id}')">${f.name}</button>`).join("");
 }
+function toggleHistoryEntry(el) {
+    const expanded = el.classList.toggle("tl-expanded");
+    el.setAttribute("aria-expanded", expanded ? "true" : "false");
+    el.setAttribute("aria-label", expanded ? "收起完整记录" : "展开完整记录");
+}
 function renderRecordTimeline() {
     const el = document.getElementById("recordTimeline");
     if (!el) return;
@@ -1263,7 +1269,8 @@ function renderRecordTimeline() {
         const idx = e.label.indexOf("：");
         const title = idx >= 0 ? e.label.slice(0, idx) : e.label;
         const note = idx >= 0 ? e.label.slice(idx + 1) : "";
-        return `<div class="tl-item"><input type="time" class="tl-time" value="${e.time || ""}" onchange="setRecordTime(${i},this.value)" title="点击修改实际时间"><div class="tl-card"${note ? ` onclick="this.classList.toggle('tl-expanded')"` : ""}><div class="tl-title">${esc(title)}</div>${note ? `<div class="tl-note">${esc(note)}</div>` : ""}</div></div>`;
+        const expandable = !!(note && (note.length > 72 || note.includes("\n")));
+        return `<div class="tl-item"><input type="time" class="tl-time" value="${e.time || ""}" onchange="setRecordTime(${i},this.value)" title="点击修改实际时间"><div class="tl-card history-entry ${e.textRecord ? "history-text-entry" : ""}"${expandable ? ` onclick="toggleHistoryEntry(this)" role="button" tabindex="0" aria-expanded="false" aria-label="展开完整记录" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHistoryEntry(this)}"` : ""}><div class="tl-title">${esc(title)}</div>${note ? `<div class="tl-note history-entry-text">${escMultiline(note)}</div>` : ""}${expandable ? `<div class="history-expand-hint" aria-hidden="true">${icon("chevron-down")}</div>` : ""}</div></div>`;
     }).join("");
 }
 function setRecordTime(i, val) {
@@ -1309,7 +1316,7 @@ function renderCollapsibleList(elId, key, label, count, itemsHtml, emptyHtml, al
     const collapsed = isListCollapsed(key);
     const showToggle = !!alwaysToggle || count > 3 || collapsed; // 内容多或调用方要求时显示收起入口
     const bar = showToggle
-        ? `<div class="list-toggle" onclick="toggleList('${key}')"><span>${label} ${count} 条</span><span class="lt-caret">${collapsed ? "展开 ▸" : "收起 ▾"}</span></div>`
+        ? `<div class="list-toggle"><span>${label} ${count} 条</span><button type="button" class="list-toggle-icon ${collapsed ? "collapsed" : ""}" onclick="toggleList('${key}')" aria-label="${collapsed ? "展开" : "收起"}${escAttr(label)}">${icon("chevron-down")}</button></div>`
         : "";
     el.innerHTML = bar + (collapsed ? "" : itemsHtml);
 }
@@ -1444,7 +1451,7 @@ function delReviewAt(d, i) {
 function renderReviews() {
     const list = day().reviews;
     document.getElementById("reviewList").innerHTML = list.map((r, i) =>
-        `<div class="entry entry-has-actions">${escMultiline(r.text)}<div class="meta"><span>${r.time}</span></div>
+        `<div class="entry entry-has-actions history-entry history-text-entry"><div class="history-entry-text">${escMultiline(r.text)}</div><div class="meta"><span>${r.time}</span></div>
      ${entryActions(`editRecordText('review','${currentDate}',${i})`, `delReview(${i})`, "编辑复盘", "删除复盘")}</div>`).join("");
 }
 
@@ -1478,8 +1485,8 @@ function renderReviewOverview() {
     });
     recent.sort((a, b) => (b.d + (b.r.time || "")).localeCompare(a.d + (a.r.time || "")));
     const recentHtml = recent.map(x =>
-        `<div class="entry entry-has-actions rv-recent-item">
-          <div class="rv-r-text">${escMultiline(x.r.text)}</div>
+        `<div class="entry entry-has-actions history-entry history-text-entry rv-recent-item">
+          <div class="rv-r-text history-entry-text">${escMultiline(x.r.text)}</div>
           <div class="meta"><span>${x.d === todayStr() ? "今天" : x.d}${x.r.time ? ` · ${esc(x.r.time)}` : ""}</span></div>
           ${entryActions(`editRecordText('review','${x.d}',${x.i})`, `delReviewAt('${x.d}',${x.i})`, "编辑复盘", "删除复盘")}
         </div>`).join("");
@@ -1543,7 +1550,7 @@ function delGratitude(i) { removeWithUndo(day().gratitude, i, "感恩", renderTo
 function renderGratitude() {
     const list = day().gratitude;
     document.getElementById("gratitudeList").innerHTML = list.map((g, i) =>
-        `<div class="entry entry-has-actions">${escMultiline(g.text)}<div class="meta"><span>${g.time}</span></div>
+        `<div class="entry entry-has-actions history-entry history-text-entry"><div class="history-entry-text">${escMultiline(g.text)}</div><div class="meta"><span>${g.time}</span></div>
      ${entryActions(`editRecordText('gratitude','${currentDate}',${i})`, `delGratitude(${i})`, "编辑感恩记录", "删除感恩记录")}</div>`).join("");
 }
 
@@ -1623,7 +1630,7 @@ function renderExercises() {
     const el = document.getElementById("exerciseList");
     if (!el) return;
     el.innerHTML = list.map((x, i) =>
-        `<div class="entry entry-has-actions">${escMultiline(x.text)}<div class="meta"><span>${x.time}</span></div>
+        `<div class="entry entry-has-actions history-entry history-text-entry"><div class="history-entry-kicker">🏃 锻炼记录</div><div class="history-entry-text">${escMultiline(x.text)}</div><div class="meta"><span>${x.time}</span></div>
      ${entryActions(`editRecordText('exercise','${currentDate}',${i})`, `delExercise(${i})`, "编辑锻炼记录", "删除锻炼记录")}</div>`).join("");
 }
 
@@ -1670,7 +1677,8 @@ function renderBowel() {
         if (b.honey === true) parts.push("用了蜂蜜露");
         if (b.honey === false) parts.push("未用蜂蜜露");
         if (b.healthy) parts.push(healthLabel[b.healthy] || "");
-        return `<div class="entry entry-has-actions">💩 ${parts.join(" · ")}${b.note ? "<br>" + escMultiline(b.note) : ""}
+        const summary = parts.join(" · ");
+        return `<div class="entry entry-has-actions history-entry health-history-entry"><div class="history-entry-kicker">💩 排便记录</div><div class="history-entry-text">${esc(summary)}${summary && b.note ? "<br>" : ""}${b.note ? escMultiline(b.note) : ""}</div>
        <div class="meta"><span>${b.time}</span></div>
        ${entryActions(`editRecordText('bowel','${currentDate}',${i})`, `delBowel(${i})`, "编辑排便备注", "删除排便记录")}</div>`;
     }).join("");
@@ -1703,8 +1711,33 @@ function renderWeight() {
         info = `上次 ${prev.d}：${prev.value} kg，${diff > 0 ? "+" + diff : diff} kg`;
     } else if (prev) info = `上次 ${prev.d}：${prev.value} kg`;
     document.getElementById("weightInfo").textContent = info;
+    const history = document.getElementById("weightHistory");
+    if (history) {
+        history.innerHTML = o.weight ? `<div class="entry entry-has-actions history-entry health-history-entry">
+          <div class="history-entry-kicker">⚖️ 体重记录</div>
+          <div class="history-entry-value">${esc(String(o.weight.value))}<i>kg</i></div>
+          ${o.weight.note ? `<div class="history-entry-text">${escMultiline(o.weight.note)}</div>` : ""}
+          <div class="meta"><span>${o.weight.time || ""}</span></div>
+          ${entryActions("focusWeightRecord()", "deleteWeightRecord()", "编辑体重记录", "删除体重记录")}</div>` : "";
+    }
     const heroWeight = document.getElementById("heroWeight");
     if (heroWeight) setMetric("heroWeight", o.weight && o.weight.value != null ? o.weight.value : "—", o.weight && o.weight.value != null ? "kg" : "");
+}
+function focusWeightRecord() {
+    const input = document.getElementById("weightInput");
+    if (!input) return;
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => { input.focus({ preventScroll: true }); input.select(); }, 220);
+}
+function deleteWeightRecord() {
+    const previous = day().weight;
+    if (!previous) return;
+    day().weight = null;
+    save(); renderWeight(); renderTimeline(); renderRecordTimeline();
+    showUndo("已删除体重记录", () => {
+        day().weight = previous;
+        save(); renderWeight(); renderTimeline(); renderRecordTimeline();
+    });
 }
 function setSleep(quality) {
     const o = day();
@@ -1814,7 +1847,7 @@ function renderTech() {
         (store.days[d].techLogs || []).forEach((t, i) => items.push({ d, i, t }));
     });
     document.getElementById("techList") && renderCollapsibleList("techList", "tech", "技术笔记", items.length,
-        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.t.text)}
+        items.map(x => `<div class="entry entry-has-actions history-entry history-text-entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span><div class="history-entry-text">${escMultiline(x.t.text)}</div>
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
 ${entryActions(`editRecordText('tech','${x.d}',${x.i})`, `delTech('${x.d}',${x.i})`, "编辑技术笔记", "删除技术笔记")}</div>`).join(""),
         `<div class="empty-tip">今天学了什么？随手记一条，同时完成"技术学习"打卡 💪</div>`);
@@ -1834,7 +1867,7 @@ function renderPregDiaries() {
         .sort((a, b) => recordTimestampValue(b.p, currentDate) - recordTimestampValue(a.p, currentDate));
     const el = document.getElementById("pregDiaryList");
     el.innerHTML = list.map(({ p, i }) =>
-        `<div class="entry entry-has-actions">${escMultiline(p.text)}<div class="meta"><span>${p.time}</span></div>
+        `<div class="entry entry-has-actions history-entry history-text-entry"><div class="history-entry-text">${escMultiline(p.text)}</div><div class="meta"><span>${p.time}</span></div>
      ${entryActions(`editRecordText('pregDiary','${currentDate}',${i})`, `delPregDiary(${i})`, "编辑孕期日记", "删除孕期日记")}</div>`).join("");
 }
 
@@ -1864,7 +1897,7 @@ function renderMedia() {
         `<button class="filter-chip ${mediaFilter === t ? "sel" : ""}" onclick="setMediaFilter('${t.replace(/'/g, "\\'")}')">${t} (${t === "全部" ? all.length : all.filter(x => x.m.tag === t).length})</button>`).join("");
     const items = mediaFilter === "全部" ? all : all.filter(x => x.m.tag === mediaFilter);
     renderCollapsibleList("mediaList", "media", "运营", items.length,
-        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.m.tag}</span>${escMultiline(x.m.text)}
+        items.map(x => `<div class="entry entry-has-actions history-entry history-text-entry"><span class="tag">${x.m.tag}</span><div class="history-entry-text">${escMultiline(x.m.text)}</div>
 <div class="meta"><span>${x.d} ${x.m.time}</span></div>
 ${entryActions(`editRecordText('media','${x.d}',${x.i})`, `delMedia('${x.d}',${x.i})`, "编辑运营记录", "删除运营记录")}</div>`).join(""),
         `<div class="empty-tip">还没有运营记录，发布一条 / 整理素材就记一条吧</div>`);
@@ -1921,7 +1954,7 @@ function renderThoughts() {
         `<button class="filter-chip ${thoughtFilter === t ? "sel" : ""}" onclick="setThoughtFilter('${t.replace(/'/g, "\\'")}')">${esc(t)} (${t === "全部" ? all.length : all.filter(x => thoughtTagsOf(x.t).includes(t)).length})</button>`).join("") : "";
     const items = thoughtFilter === "全部" ? all : all.filter(x => thoughtTagsOf(x.t).includes(thoughtFilter));
     renderCollapsibleList("thoughtList", "thoughts", "想法", items.length,
-        items.map(x => `<div class="entry entry-has-actions">${thoughtTagsOf(x.t).map(t => `<span class="tag">${esc(t)}</span>`).join("")}${escMultiline(x.t.text)}
+        items.map(x => `<div class="entry entry-has-actions history-entry history-text-entry">${thoughtTagsOf(x.t).map(t => `<span class="tag">${esc(t)}</span>`).join("")}<div class="history-entry-text">${escMultiline(x.t.text)}</div>
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
 ${entryActions(`editRecordText('thought','${x.d}',${x.i})`, `delThought('${x.d}',${x.i})`, "编辑想法", "删除想法")}</div>`).join(""),
         `<div class="empty-tip">还没有想法碎片，随手记一条吧</div>`);
@@ -1947,7 +1980,7 @@ function renderKnowledge() {
         (store.days[d].knowledge || []).forEach((k, i) => items.push({ d, i, k }));
     });
     renderCollapsibleList("knowledgeList", "knowledge", "知识", items.length,
-        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.k.type}</span>${escMultiline(x.k.text)}
+        items.map(x => `<div class="entry entry-has-actions history-entry history-text-entry"><span class="tag">${x.k.type}</span><div class="history-entry-text">${escMultiline(x.k.text)}</div>
 <div class="meta"><span>${x.d} ${x.k.time}</span></div>
 ${entryActions(`editRecordText('knowledge','${x.d}',${x.i})`, `delKnowledge('${x.d}',${x.i})`, "编辑知识记录", "删除知识记录")}</div>`).join(""),
         `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`);
@@ -1978,8 +2011,10 @@ function delExpense(i) { removeWithUndo(day().expenses, i, "开支", () => { ren
 function renderExpenses() {
     const list = day().expenses;
     document.getElementById("expenseTodayBadge").textContent = "¥" + fmtMoney(expenseTotal(currentDate));
+    const expEl = document.getElementById("heroExpense");
+    if (expEl) expEl.textContent = "¥" + fmtMoney(expenseTotal(currentDate));
     document.getElementById("expenseList").innerHTML = list.length
-        ? list.map((e, i) => `<div class="entry entry-has-actions"><span class="tag">${catIcon(e.cat)} ${e.cat}</span><b>¥${fmtMoney(e.amount)}</b>${e.note ? " · " + esc(e.note) : ""}
+        ? list.map((e, i) => `<div class="entry entry-has-actions history-entry"><div class="history-entry-kicker"><span class="tag">${catIcon(e.cat)} ${e.cat}</span><b>¥${fmtMoney(e.amount)}</b></div>${e.note ? `<div class="history-entry-text">${escMultiline(e.note)}</div>` : ""}
 <div class="meta"><span>${e.time}</span></div>
 ${entryActions(`editRecordText('expense','${currentDate}',${i})`, `delExpense(${i})`, "编辑开支备注", "删除开支")}</div>`).join("")
         : `<div class="empty-tip">今天还没有记账，点上方分类记一笔吧</div>`;
@@ -2019,7 +2054,7 @@ function renderWishes() {
                 head = `<span class="tag">🧊 冷静 ${coolDays} 天</span>`;
                 actions = `<div class="wish-actions"><button class="btn small" onclick="setWishStatus('${x.d}',${x.i},'resisted')">✋ 忍住了</button><button class="btn small ghost" onclick="setWishStatus('${x.d}',${x.i},'bought')">🛒 还是买了</button></div>`;
             }
-            return `<div class="entry entry-has-actions">${head} <b>${esc(w.item)}</b>${w.amount ? " · ¥" + fmtMoney(w.amount) : ""}<div class="wish-reason-row"><div class="wish-reason ${w.reason ? "" : "empty"}">${w.reason ? escMultiline(w.reason) : "添加购买理由"}</div><button type="button" class="wish-reason-edit" onclick="editRecordText('wishReason','${x.d}',${x.i})" aria-label="编辑购买理由" title="编辑购买理由">${icon("edit")}</button></div>
+            return `<div class="entry entry-has-actions history-entry">${head}<div class="history-entry-value history-entry-value-small">${esc(w.item)}${w.amount ? `<i>¥${fmtMoney(w.amount)}</i>` : ""}</div><div class="wish-reason-row"><div class="wish-reason history-entry-text ${w.reason ? "" : "empty"}">${w.reason ? escMultiline(w.reason) : "添加购买理由"}</div><button type="button" class="wish-reason-edit" onclick="editRecordText('wishReason','${x.d}',${x.i})" aria-label="编辑购买理由" title="编辑购买理由">${icon("edit")}</button></div>
 <div class="meta"><span>${x.d} ${w.time}</span></div>${actions}
 ${entryActions(`editRecordText('wishItem','${x.d}',${x.i})`, `delWish('${x.d}',${x.i})`, "编辑想买物品", "删除想买记录")}</div>`;
         }).join("")
