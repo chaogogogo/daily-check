@@ -5272,8 +5272,8 @@ body {
     gap: 6px;
     margin: 2px 0 7px;
     color: var(--color-text, var(--text));
-    font-size: 25px;
-    font-weight: 720;
+    font-size: 18px;
+    font-weight: 680;
     line-height: 1.2;
 }
 
