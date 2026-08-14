@@ -1,5 +1,5 @@
-const CACHE = "cc-gogogo-v68";
-const ASSETS = ["./daily-checkin.html", "./style.css?v=68", "./app.js?v=68", "./manifest.json", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
+const CACHE = "cc-gogogo-v69";
+const ASSETS = ["./daily-checkin.html", "./style.css?v=69", "./app.js?v=69", "./manifest.json", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
     e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
