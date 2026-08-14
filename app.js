@@ -1689,9 +1689,13 @@ function saveWeight() {
     const input = document.getElementById("weightInput");
     const v = parseFloat(input.value);
     if (!v || v <= 0) { alert("请输入有效体重"); return; }
-    const note = document.getElementById("weightNote").value.trim();
+    const noteInput = document.getElementById("weightNote");
+    const note = noteInput.value.trim();
     day().weight = { value: v, time: nowTime(), note };
-    save(); flash("weightSaved"); renderWeight(); renderTimeline();
+    save(); renderWeight(); renderTimeline(); renderRecordTimeline();
+    input.value = "";
+    noteInput.value = "";
+    flash("weightSaved");
 }
 function lastWeightBefore(d) {
     const dates = Object.keys(store.days).filter(x => x < d && store.days[x].weight && store.days[x].weight.value).sort();
@@ -1726,6 +1730,10 @@ function renderWeight() {
 function focusWeightRecord() {
     const input = document.getElementById("weightInput");
     if (!input) return;
+    const weight = day().weight;
+    input.value = weight && weight.value != null ? weight.value : "";
+    const noteInput = document.getElementById("weightNote");
+    if (noteInput) noteInput.value = weight && weight.note ? weight.note : "";
     input.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => { input.focus({ preventScroll: true }); input.select(); }, 220);
 }
