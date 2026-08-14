@@ -10,8 +10,9 @@
     <meta name="apple-mobile-web-app-title" content="CC GOGOGO">
     <meta name="theme-color" content="#355a4f">
     <link rel="apple-touch-icon" href="icon-180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=67">
+    <link rel="stylesheet" href="style.css?v=68">
 </head>
 
 <body>
@@ -41,8 +42,6 @@
                 <button class="date-btn" onclick="pickDate()" title="选择日期" aria-label="选择日期">
                     <span class="date-cal" data-ic="calendar"></span>
                 </button>
-                <input type="date" id="datePicker" class="date-hidden" onchange="setDate(this.value)" aria-hidden="true"
-                    tabindex="-1">
                 <button class="nav-arrow" onclick="shiftDate(1)" title="后一天" aria-label="后一天"><span
                         data-ic="chevron-right"></span></button>
             </div>
@@ -672,19 +671,45 @@
             <textarea id="editorTextarea" rows="9" placeholder="请输入内容…" oninput="updateEditorCount()"></textarea>
             <div class="editor-count" id="editorCount">0 字</div>
         </div>
-        <label class="editor-date-field" id="editorDateField" hidden>
-            <span>目标日期</span>
-            <input type="date" id="editorDateInput">
-        </label>
         <div class="editor-actions">
             <button class="btn ghost" type="button" onclick="closeSheet()">取消</button>
             <button class="btn" type="button" onclick="saveEditorSheet()">保存</button>
         </div>
     </div>
 
+    <div class="sheet date-picker-sheet" id="datePickerSheet" role="dialog" aria-modal="true"
+        aria-labelledby="datePickerSheetTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title" id="datePickerSheetTitle">选择日期</div>
+        <p class="date-picker-hint" id="datePickerHint">选择要查看的日期</p>
+        <div class="date-picker-toolbar">
+            <button type="button" onclick="shiftDatePickerMonth(-1)" aria-label="上个月" title="上个月"><span
+                    data-ic="chevron-left"></span></button>
+            <strong id="datePickerMonthLabel"></strong>
+            <button type="button" onclick="shiftDatePickerMonth(1)" aria-label="下个月" title="下个月"><span
+                    data-ic="chevron-right"></span></button>
+        </div>
+        <div class="date-picker-week" aria-hidden="true">
+            <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+        </div>
+        <div class="date-picker-grid" id="datePickerGrid" role="grid" aria-label="日期"></div>
+        <div class="date-picker-shortcuts">
+            <button type="button" onclick="pickDateShortcut(0)">今天</button>
+            <button type="button" onclick="pickDateShortcut(1)">明天</button>
+            <button type="button" onclick="pickDateShortcut(7)">一周后</button>
+        </div>
+        <div class="date-picker-selection">
+            <span>已选择</span><strong id="datePickerSelectedLabel"></strong>
+        </div>
+        <div class="editor-actions date-picker-actions">
+            <button class="btn ghost" type="button" onclick="closeSheet()">取消</button>
+            <button class="btn" type="button" onclick="confirmDatePicker()">确认日期</button>
+        </div>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=67"></script>
+    <script src="app.js?v=68"></script>
 </body>
 
 </html>

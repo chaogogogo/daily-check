@@ -244,7 +244,6 @@ function waterCup() { return store.settings.waterCup || 200; }
 function setDate(d) {
     if (!d) return;
     currentDate = d;
-    document.getElementById("datePicker").value = d;
     const dt = new Date(d + "T12:00:00");
     const wd = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
     const tip = document.getElementById("notTodayTip");
@@ -257,9 +256,78 @@ function setDate(d) {
     renderAll();
 }
 function pickDate() {
-    const p = document.getElementById("datePicker");
-    if (p.showPicker) { try { p.showPicker(); return; } catch (e) { } }
-    p.focus(); p.click();
+    openAppDatePicker({
+        title: "选择查看日期",
+        hint: "切换日期后，可以查看记录或补录当天内容",
+        value: currentDate,
+        onSave: setDate,
+    });
+}
+let appDatePickerSelected = todayStr();
+let appDatePickerYear = new Date().getFullYear();
+let appDatePickerMonth = new Date().getMonth();
+let appDatePickerSaveHandler = null;
+function openAppDatePicker(options) {
+    const selected = options.value || todayStr();
+    const dt = new Date(selected + "T12:00:00");
+    closeSheet();
+    appDatePickerSelected = selected;
+    appDatePickerYear = dt.getFullYear();
+    appDatePickerMonth = dt.getMonth();
+    appDatePickerSaveHandler = options.onSave;
+    setTxt("datePickerSheetTitle", options.title || "选择日期");
+    setTxt("datePickerHint", options.hint || "选择一个日期后确认");
+    renderAppDatePicker();
+    openSheet("datePickerSheet");
+}
+function datePickerLabel(d) {
+    const dt = new Date(d + "T12:00:00");
+    const wd = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
+    return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日 · 周${wd}`;
+}
+function renderAppDatePicker() {
+    const grid = document.getElementById("datePickerGrid");
+    if (!grid) return;
+    setTxt("datePickerMonthLabel", `${appDatePickerYear} 年 ${appDatePickerMonth + 1} 月`);
+    setTxt("datePickerSelectedLabel", datePickerLabel(appDatePickerSelected));
+    const firstDay = new Date(appDatePickerYear, appDatePickerMonth, 1).getDay();
+    const daysInMonth = new Date(appDatePickerYear, appDatePickerMonth + 1, 0).getDate();
+    const today = todayStr();
+    let html = "";
+    for (let i = 0; i < firstDay; i++) html += `<span class="date-picker-blank" aria-hidden="true"></span>`;
+    for (let n = 1; n <= daysInMonth; n++) {
+        const d = `${appDatePickerYear}-${String(appDatePickerMonth + 1).padStart(2, "0")}-${String(n).padStart(2, "0")}`;
+        const selected = d === appDatePickerSelected;
+        const hasData = !!store.days[d];
+        html += `<button type="button" role="gridcell" class="date-picker-day ${d === today ? "today" : ""} ${selected ? "selected" : ""} ${hasData ? "has-data" : ""}" aria-selected="${selected}" aria-label="${datePickerLabel(d)}${hasData ? "，已有记录" : ""}" onclick="selectAppDate('${d}')"><span>${n}</span>${hasData ? '<i aria-hidden="true"></i>' : ""}</button>`;
+    }
+    grid.innerHTML = html;
+}
+function selectAppDate(d) {
+    appDatePickerSelected = d;
+    renderAppDatePicker();
+}
+function shiftDatePickerMonth(n) {
+    appDatePickerMonth += n;
+    if (appDatePickerMonth < 0) { appDatePickerMonth = 11; appDatePickerYear--; }
+    if (appDatePickerMonth > 11) { appDatePickerMonth = 0; appDatePickerYear++; }
+    renderAppDatePicker();
+}
+function pickDateShortcut(days) {
+    const base = new Date(todayStr() + "T12:00:00");
+    base.setDate(base.getDate() + days);
+    const d = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
+    appDatePickerSelected = d;
+    appDatePickerYear = base.getFullYear();
+    appDatePickerMonth = base.getMonth();
+    renderAppDatePicker();
+}
+function confirmDatePicker() {
+    if (!appDatePickerSaveHandler || !appDatePickerSelected) return;
+    const handler = appDatePickerSaveHandler;
+    appDatePickerSaveHandler = null;
+    closeSheet();
+    handler(appDatePickerSelected);
 }
 function renderAppTitle() {
     const t = store.settings.appTitle || "CC GOGOGO";
@@ -466,7 +534,6 @@ function openSheet(id) {
 }
 let editorSaveHandler = null;
 let editorAllowEmpty = false;
-let editorMode = "text";
 function updateEditorCount() {
     const ta = document.getElementById("editorTextarea");
     const count = document.getElementById("editorCount");
@@ -476,15 +543,12 @@ function openTextEditor(options) {
     const ta = document.getElementById("editorTextarea");
     if (!ta) return;
     closeSheet();
-    editorMode = "text";
     editorAllowEmpty = !!options.allowEmpty;
     editorSaveHandler = options.onSave;
     setTxt("editorSheetTitle", options.title || "编辑记录");
     setTxt("editorHint", options.hint || "支持长文本和换行；按 ⌘/Ctrl + Enter 快速保存");
     ta.value = options.value || "";
     ta.placeholder = options.placeholder || "请输入内容…";
-    document.getElementById("editorTextField").hidden = false;
-    document.getElementById("editorDateField").hidden = true;
     updateEditorCount();
     openSheet("editorSheet");
     setTimeout(() => {
@@ -493,32 +557,17 @@ function openTextEditor(options) {
     }, 40);
 }
 function openDateEditor(options) {
-    closeSheet();
-    editorMode = "date";
-    editorAllowEmpty = false;
-    editorSaveHandler = options.onSave;
-    setTxt("editorSheetTitle", options.title || "选择日期");
-    setTxt("editorHint", options.hint || "选择后，这条 Todo 会出现在对应日期。创建时间保持不变。");
-    document.getElementById("editorTextField").hidden = true;
-    document.getElementById("editorDateField").hidden = false;
-    const input = document.getElementById("editorDateInput");
-    input.value = options.value || currentDate;
-    openSheet("editorSheet");
-    setTimeout(() => {
-        input.focus();
-        if (input.showPicker) { try { input.showPicker(); } catch (e) { } }
-    }, 40);
+    openAppDatePicker({
+        title: options.title || "移动 Todo 到指定日期",
+        hint: options.hint || "选择后，Todo 会出现在目标日期；原始创建时间保持不变",
+        value: options.value || currentDate,
+        onSave: options.onSave,
+    });
 }
 function saveEditorSheet() {
     if (!editorSaveHandler) return;
-    let value;
-    if (editorMode === "date") {
-        value = document.getElementById("editorDateInput").value;
-        if (!value) { showToast("请选择日期"); return; }
-    } else {
-        value = document.getElementById("editorTextarea").value.trim();
-        if (!value && !editorAllowEmpty) { showToast("内容不能为空"); return; }
-    }
+    const value = document.getElementById("editorTextarea").value.trim();
+    if (!value && !editorAllowEmpty) { showToast("内容不能为空"); return; }
     const handler = editorSaveHandler;
     editorSaveHandler = null;
     closeSheet();
@@ -556,10 +605,13 @@ function editRecordText(type, d, i, extra) {
 function closeSheet() {
     const editor = document.getElementById("editorSheet");
     const editorWasOpen = !!(editor && editor.classList.contains("open"));
+    const datePicker = document.getElementById("datePickerSheet");
+    const datePickerWasOpen = !!(datePicker && datePicker.classList.contains("open"));
     document.querySelectorAll(".sheet.open").forEach(s => s.classList.remove("open"));
     const scrim = document.getElementById("sheetScrim");
     if (scrim) scrim.classList.remove("open");
     if (editorWasOpen) editorSaveHandler = null;
+    if (datePickerWasOpen) appDatePickerSaveHandler = null;
 }
 document.addEventListener("keydown", e => {
     if (e.key === "Escape") closeSheet();
