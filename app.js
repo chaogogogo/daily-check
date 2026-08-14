@@ -65,6 +65,48 @@ const ENG_TIPS = [
     "把学英语当成刷手机：随手点开、随时暂停、不需要仪式感 📱",
 ];
 
+function makeRecordId(prefix) {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return `${prefix}_${crypto.randomUUID()}`;
+    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+}
+function normalizeThoughtRecord(t) {
+    if (!t || typeof t !== "object") return false;
+    let changed = false;
+    if (!Array.isArray(t.tags)) {
+        t.tags = t.tag ? [t.tag] : [];
+        changed = true;
+    }
+    const tags = Array.from(new Set(t.tags.map(x => String(x || "").trim()).filter(Boolean)));
+    if (tags.length !== t.tags.length || tags.some((x, i) => x !== t.tags[i])) { t.tags = tags; changed = true; }
+    if (Object.prototype.hasOwnProperty.call(t, "tag")) { delete t.tag; changed = true; }
+    return changed;
+}
+function normalizeTaskRecord(t, createdDate, index) {
+    if (!t || typeof t !== "object") return false;
+    let changed = false;
+    if (!t.id) { t.id = `task_${String(createdDate).replace(/-/g, "")}_${index}_${Math.random().toString(36).slice(2, 8)}`; changed = true; }
+    if (!t.createdDate) { t.createdDate = createdDate; changed = true; }
+    if (t.createdTime == null) { t.createdTime = ""; changed = true; }
+    if (t.done) {
+        if (!t.completedDate) { t.completedDate = createdDate; changed = true; }
+        if (t.completedTime == null || (!t.completedTime && t.time)) { t.completedTime = t.time || ""; changed = true; }
+    } else {
+        if (t.completedDate) { t.completedDate = ""; changed = true; }
+        if (t.completedTime) { t.completedTime = ""; changed = true; }
+    }
+    if (Object.prototype.hasOwnProperty.call(t, "time")) { delete t.time; changed = true; }
+    return changed;
+}
+function migrateStoreData(s) {
+    let changed = false;
+    Object.keys(s.days || {}).forEach(d => {
+        const o = s.days[d] || {};
+        (o.thoughts || []).forEach(t => { if (normalizeThoughtRecord(t)) changed = true; });
+        (o.tasks || []).forEach((t, i) => { if (normalizeTaskRecord(t, d, i)) changed = true; });
+    });
+    return changed;
+}
+
 let store = loadStore();
 let currentDate = todayStr();
 let calYear, calMonth; // 日历视图
@@ -72,6 +114,7 @@ let kType = "播客";
 // 首页折叠状态（Phase 2）
 let planHideDone = (store.settings && store.settings.planHideDone !== undefined) ? !!store.settings.planHideDone : true; // 每日计划：是否隐藏已完成（默认折叠已完成）
 let tasksShowDone = false;    // 临时任务：是否展开已完成分组
+let todoCenterShowDone = false;
 
 function loadStore() {
     let s;
@@ -85,6 +128,9 @@ function loadStore() {
     s.settings.supplements = s.settings.supplements || ["DHA", "钙", "铁", "复合维生素"];
     s.settings.symptomTags = s.settings.symptomTags || ["腰疼", "背疼", "手疼", "腿疼", "腿麻", "肚子疼", "胃酸", "胃疼"];
     s.settings.thoughtTags = s.settings.thoughtTags || ["梦", "情绪", "技能", "工作", "idea", "复盘", "人际", "好物", "其他"];
+    if (migrateStoreData(s)) {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { console.error(e); }
+    }
     return s;
 }
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
@@ -118,9 +164,11 @@ function day(d) {
     if (o.pregDiary && o.pregDiary.trim()) o.pregDiaries.push({ text: o.pregDiary.trim(), time: o.pregDiaryTime || "" });
     delete o.pregDiary; delete o.pregDiaryTime;
     o.media = o.media || [];   // [{text,tag,time}] 自媒体运营
-    o.thoughts = o.thoughts || [];   // [{text,time,voice}]
+    o.thoughts = o.thoughts || [];   // [{text,tags:[],time,date}]
     o.knowledge = o.knowledge || [];   // [{text,type,time}]
-    o.tasks = o.tasks || [];   // [{text,done,time}]
+    o.tasks = o.tasks || [];   // [{id,text,done,createdDate,createdTime,completedDate,completedTime}]
+    o.thoughts.forEach(normalizeThoughtRecord);
+    o.tasks.forEach((t, i) => normalizeTaskRecord(t, d, i));
     o.weight = o.weight || null;   // {value,time,note}
     o.sleep = o.sleep || null;   // {quality:"good"|"mid"|"bad",time}
     o.symptoms = o.symptoms || [];   // [{tag,time}]
@@ -321,7 +369,7 @@ let activeBottomNav = "home";
 const TAB_TO_NAV = {
     home: "home", record: "record", growth: "growth", review: "review",
     settings: "mine", data: "mine", wealth: "record", health: "record",
-    customize: "mine", about: "mine",
+    customize: "mine", about: "mine", todos: "home",
 };
 function setBottomNav(navKey) {
     activeBottomNav = navKey;
@@ -339,6 +387,7 @@ function switchTab(tab, navKey) {
     if (tab === "growth") renderGrowthOverview();
     if (tab === "health") renderHealthOverview();
     if (tab === "review") renderReviewOverview();
+    if (tab === "todos") renderTodoCenter();
     if (tab === "settings") renderProfile();
     if (tab === "customize") { renderHabitManager(); renderModuleManager(); }
 }
@@ -669,46 +718,144 @@ function renderEnglish() {
 }
 
 /* ==================== 临时任务 ==================== */
+function openTodoCenter() {
+    switchTab("todos");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
 function addTask() {
     const input = document.getElementById("taskInput");
     const text = input.value.trim(); if (!text) return;
-    day().tasks.push({ text, done: false, time: "" });
+    day().tasks.push({
+        id: makeRecordId("task"), text, done: false,
+        createdDate: currentDate, createdTime: nowTime(),
+        completedDate: "", completedTime: "", updatedAt: "",
+    });
     input.value = ""; save(); renderToday();
+    renderTodoCenter();
 }
-function toggleTask(i) {
-    const t = day().tasks[i];
+function allTaskRecords() {
+    const items = [];
+    Object.keys(store.days).sort().forEach(d => {
+        day(d).tasks.forEach((t, i) => items.push({ d, i, t }));
+    });
+    return items;
+}
+function taskLocation(d, id) {
+    const arr = day(d).tasks;
+    const i = arr.findIndex(t => t.id === id);
+    return i >= 0 ? { arr, i, t: arr[i] } : null;
+}
+function renderTaskViews() {
+    renderToday();
+    renderTodoCenter();
+    renderRecordTimeline();
+}
+function toggleTask(d, id) {
+    const loc = taskLocation(d, id); if (!loc) return;
+    const t = loc.t;
+    const previous = { done: !!t.done, completedDate: t.completedDate || "", completedTime: t.completedTime || "" };
     t.done = !t.done;
-    t.time = t.done ? nowTime() : "";
-    save(); renderToday();
+    t.completedDate = t.done ? todayStr() : "";
+    t.completedTime = t.done ? nowTime() : "";
+    t.updatedAt = `${todayStr()} ${nowTime()}`;
+    save(); renderTaskViews();
+    if (t.done) showUndo("已完成任务", () => {
+        t.done = previous.done;
+        t.completedDate = previous.completedDate;
+        t.completedTime = previous.completedTime;
+        t.updatedAt = `${todayStr()} ${nowTime()}`;
+        save(); renderTaskViews();
+    });
 }
-function delTask(i) { removeWithUndo(day().tasks, i, "任务", renderToday); }
-function taskRow(t, i) {
+function editTask(d, id) {
+    const loc = taskLocation(d, id); if (!loc) return;
+    const value = prompt("编辑任务：", loc.t.text);
+    if (value === null) return;
+    const text = value.trim();
+    if (!text) { alert("任务内容不能为空"); return; }
+    loc.t.text = text;
+    loc.t.updatedAt = `${todayStr()} ${nowTime()}`;
+    save(); renderTaskViews();
+}
+function updateTaskCompletionDate(d, id, value) {
+    const loc = taskLocation(d, id); if (!loc) return;
+    if (!value) { renderTodoCenter(); return; }
+    if (value > todayStr()) { alert("完成日期不能晚于今天"); renderTodoCenter(); return; }
+    loc.t.done = true;
+    loc.t.completedDate = value;
+    loc.t.completedTime = loc.t.completedTime || nowTime();
+    loc.t.updatedAt = `${todayStr()} ${nowTime()}`;
+    save(); renderTaskViews();
+}
+function delTask(d, id) {
+    const loc = taskLocation(d, id); if (!loc) return;
+    removeWithUndo(loc.arr, loc.i, "任务", renderTaskViews);
+}
+function taskRow(t, d, center) {
+    const created = t.createdDate || d;
+    const completed = t.completedDate || "";
+    const meta = center
+        ? `创建 ${created}${t.createdTime ? " " + t.createdTime : ""}`
+        : (t.done && completed ? `${completed === todayStr() ? "今天" : completed} ${t.completedTime || ""}` : "");
     return `<div class="task-item ${t.done ? "done" : ""}">
-      <button class="task-check" onclick="toggleTask(${i})" aria-label="${t.done ? "标记未完成" : "标记完成"}">${t.done ? icon("check") : ""}</button>
-      <span class="task-text" onclick="toggleTask(${i})">${escMultiline(t.text)}</span>
-      ${t.done ? `<span class="task-time">${t.time}</span>` : ""}
-      <button class="task-del" onclick="delTask(${i})" aria-label="删除任务">✕</button>
+      <button class="task-check" onclick="toggleTask('${d}','${t.id}')" aria-label="${t.done ? "恢复为待办" : "标记完成"}">${t.done ? icon("check") : ""}</button>
+      <div class="task-content">
+        <button type="button" class="task-text" onclick="editTask('${d}','${t.id}')" aria-label="编辑任务">${escMultiline(t.text)}</button>
+        ${meta ? `<div class="task-meta">${esc(meta)}</div>` : ""}
+        ${center && t.done ? `<label class="task-completed-date">完成日期 <input type="date" max="${todayStr()}" value="${completed}" onchange="updateTaskCompletionDate('${d}','${t.id}',this.value)"></label>` : ""}
+      </div>
+      <div class="task-actions">
+        <button type="button" onclick="editTask('${d}','${t.id}')">编辑</button>
+        ${t.done ? `<button type="button" onclick="toggleTask('${d}','${t.id}')">恢复</button>` : ""}
+        <button type="button" class="task-del" onclick="delTask('${d}','${t.id}')" aria-label="删除任务">✕</button>
+      </div>
     </div>`;
 }
 function toggleTasksDone() { tasksShowDone = !tasksShowDone; renderTasks(); }
 function renderTasks() {
     const tasks = day().tasks;
+    const totalPending = allTaskRecords().filter(x => !x.t.done).length;
+    const countEl = document.getElementById("allTodoCount");
+    if (countEl) countEl.textContent = totalPending ? String(totalPending) : "";
     const undone = tasks.map((t, i) => ({ t, i })).filter(x => !x.t.done);
     const done = tasks.map((t, i) => ({ t, i })).filter(x => x.t.done)
-        .sort((a, b) => (a.t.time || "").localeCompare(b.t.time || ""));
+        .sort((a, b) => ((a.t.completedDate || "") + (a.t.completedTime || "")).localeCompare((b.t.completedDate || "") + (b.t.completedTime || "")));
     let html = "";
     if (!tasks.length) {
-        html = `<div class="empty-tip">还没有临时任务，加一条吧 ✨</div>`;
+        html = `<div class="empty-tip">今天还没有临时任务${totalPending ? `，全部待办还有 ${totalPending} 项` : "，加一条吧 ✨"}</div>`;
     } else {
-        html = undone.map(({ t, i }) => taskRow(t, i)).join("");
+        html = undone.map(({ t }) => taskRow(t, currentDate, false)).join("");
         if (!undone.length) html += `<div class="empty-tip">今天的临时任务都完成啦 🎉</div>`;
         if (done.length) {
             html += `<button type="button" class="task-group-toggle ${tasksShowDone ? "open" : ""}" onclick="toggleTasksDone()">
         <span class="tg-caret" data-ic="chevron-down"></span>已完成 ${done.length} 项</button>`;
-            if (tasksShowDone) html += `<div class="task-done-group">${done.map(({ t, i }) => taskRow(t, i)).join("")}</div>`;
+            if (tasksShowDone) html += `<div class="task-done-group">${done.map(({ t }) => taskRow(t, currentDate, false)).join("")}</div>`;
         }
     }
     const list = document.getElementById("taskList");
+    list.innerHTML = html;
+    renderIcons(list);
+}
+function toggleTodoCenterDone() { todoCenterShowDone = !todoCenterShowDone; renderTodoCenter(); }
+function renderTodoCenter() {
+    const list = document.getElementById("todoCenterList"); if (!list) return;
+    const all = allTaskRecords();
+    const pending = all.filter(x => !x.t.done).sort((a, b) =>
+        ((a.t.createdDate || a.d) + (a.t.createdTime || "")).localeCompare((b.t.createdDate || b.d) + (b.t.createdTime || "")));
+    const done = all.filter(x => x.t.done).sort((a, b) =>
+        ((b.t.completedDate || "") + (b.t.completedTime || "")).localeCompare((a.t.completedDate || "") + (a.t.completedTime || "")));
+    const pendingEl = document.getElementById("todoPendingCount");
+    const doneEl = document.getElementById("todoDoneCount");
+    if (pendingEl) pendingEl.textContent = pending.length;
+    if (doneEl) doneEl.textContent = done.length;
+    let html = `<div class="todo-center-heading"><b>未完成</b><span>${pending.length} 项 · 按创建时间排序</span></div>`;
+    html += pending.length
+        ? `<div class="todo-center-group">${pending.map(x => taskRow(x.t, x.d, true)).join("")}</div>`
+        : `<div class="empty-tip">没有未完成任务，轻松一下吧 🎉</div>`;
+    if (done.length) {
+        html += `<button type="button" class="todo-done-toggle ${todoCenterShowDone ? "open" : ""}" onclick="toggleTodoCenterDone()"><span data-ic="chevron-down"></span>已完成 ${done.length} 项</button>`;
+        if (todoCenterShowDone) html += `<div class="todo-center-heading done-heading"><b>已完成</b><span>可以修改完成日期或恢复为待办</span></div><div class="todo-center-group done-group">${done.map(x => taskRow(x.t, x.d, true)).join("")}</div>`;
+    }
     list.innerHTML = html;
     renderIcons(list);
 }
@@ -809,7 +956,8 @@ const HABIT_CAT = {
     skincare: "life", diary: "life", review: "life",
 };
 function collectTimeline(d) {
-    const o = day(d), ev = [];
+    const timelineDate = d || currentDate;
+    const o = day(timelineDate), ev = [];
     HABITS.forEach(h => {
         if (!h.auto && o.habits[h.id] && o.habits[h.id].done && o.habits[h.id].time)
             ev.push({ time: o.habits[h.id].time, label: `${h.icon} 完成打卡：${h.name}`, ref: o.habits[h.id], cat: HABIT_CAT[h.id] || "life" });
@@ -823,7 +971,9 @@ function collectTimeline(d) {
             (rec && rec.notes || []).forEach(n => { if (n.time) ev.push({ time: n.time, label: `✍️ 英语[${t.name}]：${trunc(n.text, 18)}`, ref: n, cat: "study" }); });
         }
     });
-    o.tasks.forEach(t => { if (t.done && t.time) ev.push({ time: t.time, label: `📌 完成任务：${trunc(t.text, 18)}`, ref: t, cat: "life" }); });
+    allTaskRecords().forEach(({ t }) => {
+        if (t.done && t.completedDate === timelineDate) ev.push({ time: t.completedTime || "", label: `📌 完成任务：${trunc(t.text, 18)}`, ref: t, timeField: "completedTime", cat: "life" });
+    });
     Object.entries(o.supplements).forEach(([n, s]) => { if (s.done) ev.push({ time: s.time, label: `💊 补剂：${n}`, ref: s, cat: "health" }); });
     o.reviews.forEach(r => { if (r.time) ev.push({ time: r.time, label: `🌙 复盘：${trunc(r.text, 18)}`, ref: r, cat: "life" }); });
     o.gratitude.forEach(g => ev.push({ time: g.time, label: `💛 感恩：${trunc(g.text, 18)}`, ref: g, cat: "life" }));
@@ -843,7 +993,7 @@ function collectTimeline(d) {
     o.symptoms.forEach(s => ev.push({ time: s.time, label: `🤕 孕期反应：${s.tag}`, ref: s, cat: "pregnancy" }));
     o.techLogs.forEach(t => ev.push({ time: t.time, label: `💻 技术：${trunc(t.text, 18)}`, ref: t, cat: "study" }));
     o.media.forEach(m => ev.push({ time: m.time, label: `📣 ${m.tag}：${trunc(m.text, 18)}`, ref: m, cat: "inspiration" }));
-    o.thoughts.forEach(t => ev.push({ time: t.time, label: `💭 想法${t.tag ? "[" + t.tag + "]" : ""}：${trunc(t.text, 18)}`, ref: t, cat: "inspiration" }));
+    o.thoughts.forEach(t => { const tags = thoughtTagsOf(t); ev.push({ time: t.time, label: `💭 想法${tags.length ? "[" + tags.join("/") + "]" : ""}：${trunc(t.text, 18)}`, ref: t, cat: "inspiration" }); });
     o.knowledge.forEach(k => ev.push({ time: k.time, label: `📚 ${k.type}：${trunc(k.text, 18)}`, ref: k, cat: "study" }));
     o.expenses.forEach(e => ev.push({ time: e.time, label: `💸 ${catIcon(e.cat)}${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "·" + trunc(e.note, 10) : ""}`, ref: e, cat: "consume" }));
     o.wishes.forEach(w => { if (w.time) ev.push({ time: w.time, label: `🧊 想买：${trunc(w.item, 14)}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`, ref: w, cat: "consume" }); });
@@ -905,7 +1055,7 @@ function renderRecordTimeline() {
     const badge = document.getElementById("recordDateBadge");
     if (badge) badge.textContent = currentDate === todayStr() ? "今天" : dateLabel(currentDate);
     const ev = collectTimeline();
-    recordRefs = ev.map(e => e.ref);
+    recordRefs = ev.map(e => ({ ref: e.ref, timeField: e.timeField || "time" }));
     let items = ev.map((e, i) => ({ e, i }));   // 保留原始 index 供改时间
     if (recordFilter !== "all") items = items.filter(x => x.e.cat === recordFilter);
     const searchEl = document.getElementById("recordSearch");
@@ -923,9 +1073,9 @@ function renderRecordTimeline() {
     }).join("");
 }
 function setRecordTime(i, val) {
-    const ref = recordRefs[i];
-    if (!ref || !val) { renderRecordTimeline(); return; }
-    ref.time = val;
+    const target = recordRefs[i];
+    if (!target || !target.ref || !val) { renderRecordTimeline(); return; }
+    target.ref[target.timeField] = val;
     save(); renderRecordTimeline();
 }
 function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
@@ -1492,10 +1642,12 @@ function renderMedia() {
 }
 
 /* ==================== 想法碎片 ==================== */
-let thoughtTag = "";
+let thoughtTagsSelected = [];
 let thoughtFilter = "全部";
 function selectThoughtTag(tag) {
-    thoughtTag = thoughtTag === tag ? "" : tag;
+    const i = thoughtTagsSelected.indexOf(tag);
+    if (i >= 0) thoughtTagsSelected.splice(i, 1);
+    else thoughtTagsSelected.push(tag);
     renderThoughtTagRow();
 }
 function addThoughtTag() {
@@ -1503,19 +1655,25 @@ function addThoughtTag() {
     if (!tag || !tag.trim()) return;
     const t = tag.trim();
     if (!store.settings.thoughtTags.includes(t)) store.settings.thoughtTags.push(t);
-    thoughtTag = t;
+    if (!thoughtTagsSelected.includes(t)) thoughtTagsSelected.push(t);
     save(); renderThoughtTagRow();
 }
 function renderThoughtTagRow() {
     document.getElementById("thoughtTagRow").innerHTML = store.settings.thoughtTags.map(t =>
-        `<button class="filter-chip ${thoughtTag === t ? "sel" : ""}" onclick="selectThoughtTag('${t.replace(/'/g, "\\'")}')">${esc(t)}</button>`).join("")
+        `<button type="button" class="filter-chip ${thoughtTagsSelected.includes(t) ? "sel" : ""}" aria-pressed="${thoughtTagsSelected.includes(t)}" onclick="selectThoughtTag('${t.replace(/'/g, "\\'")}')">${esc(t)}</button>`).join("")
         + `<button class="filter-chip" onclick="addThoughtTag()">+ 自定义</button>`;
+}
+function thoughtTagsOf(t) {
+    if (Array.isArray(t && t.tags)) return t.tags;
+    return t && t.tag ? [t.tag] : [];
 }
 function addThought() {
     const ta = document.getElementById("thoughtInput");
     const text = ta.value.trim(); if (!text) return;
-    day().thoughts.push({ text, tag: thoughtTag, time: nowTime(), date: currentDate });
-    ta.value = ""; save(); renderThoughts(); renderTimeline();
+    day().thoughts.push({ text, tags: [...thoughtTagsSelected], time: nowTime(), date: currentDate });
+    ta.value = "";
+    thoughtTagsSelected = [];
+    save(); renderThoughtTagRow(); renderThoughts(); renderTimeline();
 }
 function delThought(d, i) { removeWithUndo(day(d).thoughts, i, "想法", () => { renderThoughts(); renderTimeline(); }); }
 function setThoughtFilter(tag) { thoughtFilter = tag; renderThoughts(); }
@@ -1525,13 +1683,13 @@ function renderThoughts() {
     Object.keys(store.days).sort().reverse().forEach(d => {
         (store.days[d].thoughts || []).forEach((t, i) => all.push({ d, i, t }));
     });
-    const tags = ["全部", ...Array.from(new Set(all.map(x => x.t.tag).filter(Boolean)))];
+    const tags = ["全部", ...Array.from(new Set(all.flatMap(x => thoughtTagsOf(x.t))))];
     if (!tags.includes(thoughtFilter)) thoughtFilter = "全部";
     document.getElementById("thoughtFilterRow").innerHTML = tags.length > 1 ? tags.map(t =>
-        `<button class="filter-chip ${thoughtFilter === t ? "sel" : ""}" onclick="setThoughtFilter('${t.replace(/'/g, "\\'")}')">${esc(t)} (${t === "全部" ? all.length : all.filter(x => x.t.tag === t).length})</button>`).join("") : "";
-    const items = thoughtFilter === "全部" ? all : all.filter(x => x.t.tag === thoughtFilter);
+        `<button class="filter-chip ${thoughtFilter === t ? "sel" : ""}" onclick="setThoughtFilter('${t.replace(/'/g, "\\'")}')">${esc(t)} (${t === "全部" ? all.length : all.filter(x => thoughtTagsOf(x.t).includes(t)).length})</button>`).join("") : "";
+    const items = thoughtFilter === "全部" ? all : all.filter(x => thoughtTagsOf(x.t).includes(thoughtFilter));
     renderCollapsibleList("thoughtList", "thoughts", "想法", items.length,
-        items.map(x => `<div class="entry">${x.t.tag ? `<span class="tag">${esc(x.t.tag)}</span>` : ""}${escMultiline(x.t.text)}
+        items.map(x => `<div class="entry">${thoughtTagsOf(x.t).map(t => `<span class="tag">${esc(t)}</span>`).join("")}${escMultiline(x.t.text)}
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
 <button class="del" onclick="delThought('${x.d}',${x.i})">✕</button></div>`).join(""),
         `<div class="empty-tip">还没有想法碎片，随手记一条吧</div>`);
@@ -1791,7 +1949,7 @@ function collectSearchItems() {
     const blbl = { good: "健康", mid: "一般", bad: "不佳" };
     Object.keys(store.days).sort().reverse().forEach(d => {
         const o = store.days[d];
-        (o.thoughts || []).forEach(x => items.push({ d, time: x.time, type: x.tag ? "想法·" + x.tag : "想法", text: x.text }));
+        (o.thoughts || []).forEach(x => { const tags = thoughtTagsOf(x); items.push({ d, time: x.time, type: tags.length ? "想法·" + tags.join("/") : "想法", text: x.text }); });
         (o.knowledge || []).forEach(x => items.push({ d, time: x.time, type: "知识·" + x.type, text: x.text }));
         (o.media || []).forEach(x => items.push({ d, time: x.time, type: "运营·" + x.tag, text: x.text }));
         (o.techLogs || []).forEach(x => items.push({ d, time: x.time, type: "技术", text: x.text }));
@@ -1801,7 +1959,12 @@ function collectSearchItems() {
         (o.exercises || []).forEach(x => items.push({ d, time: x.time, type: "锻炼", text: x.text }));
         if (o.english && o.english.phrases) o.english.phrases.forEach(x => items.push({ d, time: x.time, type: "英语知识点", text: x.text }));
         if (o.english && o.english.tasks) Object.entries(o.english.tasks).forEach(([id, rec]) => { const t = ENG_TASKS.find(x => x.id === id); (rec.notes || []).forEach(n => items.push({ d, time: n.time, type: "英语·" + (t ? t.name : id), text: n.text })); });
-        (o.tasks || []).forEach(x => items.push({ d, time: x.time, type: "任务", text: x.text }));
+        (o.tasks || []).forEach(x => items.push({
+            d: x.createdDate || d,
+            time: x.done ? x.completedTime : x.createdTime,
+            type: x.done ? "任务·已完成" : "任务·待办",
+            text: x.text + (x.done && x.completedDate ? `（完成于 ${x.completedDate}）` : ""),
+        }));
         (o.expenses || []).forEach(x => items.push({ d, time: x.time, type: "开支·" + x.cat, text: (x.note || "") + " ¥" + x.amount }));
         (o.wishes || []).forEach(x => items.push({ d, time: x.time, type: "想买", text: x.item + (x.reason ? " — " + x.reason : "") }));
         MEALS.forEach(m => { const r = o.meals && o.meals[m.id]; if (r && (r.food || r.rating)) items.push({ d, time: r.time, type: m.name, text: (r.food || "") + (r.rating ? "（" + (rlbl[r.rating] || "") + "）" : "") }); });
@@ -1830,7 +1993,8 @@ function typeToTab(type) {
     if (type.startsWith("知识")) return "growth";
     if (type === "技术") return "growth";
     if (type.startsWith("英语")) return "growth";
-    if (type === "复盘" || type === "感恩" || type === "任务") return "home";
+    if (type === "复盘" || type === "感恩") return "home";
+    if (type.startsWith("任务")) return "todos";
     if (type.startsWith("开支") || type === "想买") return "wealth";
     return "record"; // 餐食/加餐/排便/体重/睡眠/孕期反应/日记/锻炼/补剂
 }
@@ -2045,7 +2209,7 @@ const TEXT_MODULES = [
     { key: "gratitude", name: "感恩的心", icon: "💛", get: o => o.gratitude || [] },
     { key: "techLogs", name: "技术学习", icon: "💻", get: o => o.techLogs || [] },
     { key: "pregDiaries", name: "孕期日记", icon: "🤰", get: o => o.pregDiaries || [] },
-    { key: "thoughts", name: "想法碎片", icon: "💭", get: o => o.thoughts || [], tagField: "tag" },
+    { key: "thoughts", name: "想法碎片", icon: "💭", get: o => o.thoughts || [], tagField: "tags" },
     { key: "knowledge", name: "知识收藏", icon: "📚", get: o => o.knowledge || [], tagField: "type" },
     { key: "media", name: "自媒体运营", icon: "📣", get: o => o.media || [], tagField: "tag" },
     { key: "phrases", name: "英语知识点", icon: "✍️", get: o => (o.english && o.english.phrases) || [] },
@@ -2057,12 +2221,17 @@ function moduleEntries(mod) {
     });
     return arr;
 }
+function moduleTagValue(mod, entry) {
+    if (!mod.tagField) return "";
+    const value = entry[mod.tagField];
+    return Array.isArray(value) ? value.join(" / ") : (value || "");
+}
 function buildModuleMarkdown(mod, entries) {
     const lines = [`# ${mod.icon} ${mod.name}`, "", `> 导出于 ${todayStr()} ${nowTime()} · 共 ${entries.length} 条`];
     let curDate = "";
     entries.forEach(({ d, e }) => {
         if (d !== curDate) { curDate = d; lines.push("", `## 📅 ${d}`); }
-        const tag = mod.tagField ? (e[mod.tagField] || "") : "";
+        const tag = moduleTagValue(mod, e);
         lines.push("", `**🕐 ${e.time || "—"}**${tag ? ` · \`${tag}\`` : ""}`, "");
         (e.text || "").trim().split("\n").forEach(l => lines.push(l.length ? l : ""));
     });
@@ -2075,7 +2244,7 @@ function buildModuleCSV(mod, entries) {
     const rows = [head];
     entries.forEach(({ d, e }) => {
         const row = [d, e.time || ""];
-        if (mod.tagField) row.push(e[mod.tagField] || "");
+        if (mod.tagField) row.push(moduleTagValue(mod, e));
         row.push(e.text || "");
         rows.push(row);
     });
@@ -2166,12 +2335,12 @@ function exportCSV() {
             o.sleep ? ({ good: "好", mid: "一般", bad: "差" }[o.sleep.quality] || "一般") : "",
             o.symptoms.map(s => s.tag).join(" | "),
             o.techLogs.map(t => t.text).join(" | "),
-            o.tasks.map(t => (t.done ? "✓ " : "○ ") + t.text).join(" | "),
+            o.tasks.map(t => `${t.done ? "✓" : "○"} ${t.text}（创建 ${t.createdDate || d}${t.done && t.completedDate ? `；完成 ${t.completedDate}` : ""}）`).join(" | "),
             o.reviews.map(r => r.text).join(" | "),
             o.gratitude.map(g => g.text).join(" | "),
             o.pregDiaries.map(p => p.text).join(" | "),
             o.media.map(m => `[${m.tag}] ${m.text}`).join(" | "),
-            o.thoughts.map(t => (t.tag ? `[${t.tag}] ` : "") + t.text).join(" | "),
+            o.thoughts.map(t => thoughtTagsOf(t).map(tag => `[${tag}]`).join("") + (thoughtTagsOf(t).length ? " " : "") + t.text).join(" | "),
             o.knowledge.map(k => `[${k.type}] ${k.text}`).join(" | "),
             o.expenses.map(e => `${e.cat} ¥${fmtMoney(e.amount)}${e.note ? "(" + e.note + ")" : ""}`).join(" | "),
             o.wishes.map(w => `${{ cooling: "冷静中", resisted: "忍住", bought: "已买" }[w.status] || ""} ${w.item}${w.amount ? " ¥" + fmtMoney(w.amount) : ""}`).join(" | "),
@@ -2219,6 +2388,7 @@ function importJSON(input) {
             if (data.settings && data.settings.supplements) store.settings.supplements = data.settings.supplements;
             if (data.settings && data.settings.symptomTags) store.settings.symptomTags = data.settings.symptomTags;
             if (data.settings && data.settings.thoughtTags) store.settings.thoughtTags = data.settings.thoughtTags;
+            migrateStoreData(store);
             save(); renderAll();
             alert("导入成功！");
         } catch (e) { alert("导入失败：" + e.message); }
@@ -2244,7 +2414,7 @@ function renderToday() {
     renderWeight(); renderSleep(); renderSymptoms(); renderHealthOverview(); renderReviewOverview();
 }
 function renderAll() {
-    renderToday(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderBackupTip();
+    renderToday(); renderTodoCenter(); renderThoughts(); renderKnowledge(); renderMedia(); renderTech(); renderWealth(); renderBackupTip();
     renderRecordTimeline();
     if (document.getElementById("page-data").classList.contains("active")) renderHistory();
 }
