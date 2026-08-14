@@ -5075,3 +5075,121 @@ body {
         margin-top: 8px;
     }
 }
+
+/* ==================== 今日汇总：舒展的文本卡片 ==================== */
+#dailySummary {
+    display: grid;
+    gap: 12px;
+    padding: 0;
+    background: transparent;
+}
+
+#dailySummary .sum-top {
+    margin: 0;
+    padding: 11px 14px;
+    border: 1px solid #dfe9e1;
+    border-radius: 13px;
+    background: linear-gradient(135deg, #f5faf6, #fbfdfb);
+    color: var(--color-text-secondary, var(--text-light));
+    line-height: 1.5;
+}
+
+#dailySummary .sum-sec {
+    margin: 0;
+    padding: 14px 15px 6px;
+    border: 1px solid var(--color-divider, var(--border));
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 5px 16px rgba(53, 90, 79, .055);
+}
+
+#dailySummary .sum-h {
+    margin-bottom: 6px;
+    font-size: 13px;
+    letter-spacing: .01em;
+}
+
+#dailySummary .sum-item {
+    align-items: flex-start;
+    gap: 14px;
+    padding: 10px 0;
+    border-top: 1px solid #edf1ed;
+    line-height: 1.65;
+}
+
+#dailySummary .sum-item > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text, var(--text));
+}
+
+#dailySummary .sum-t {
+    padding-top: 2px;
+    color: var(--color-text-tertiary, var(--text-light));
+}
+
+#dailySummary > .empty-tip {
+    padding: 18px 16px;
+    border: 1px dashed #d7e2d9;
+    border-radius: 15px;
+    background: #f8fbf8;
+    line-height: 1.65;
+}
+
+/* ==================== 最近复盘：完整内容 / 折叠 / 编辑 ==================== */
+.rv-recent-title {
+    margin-bottom: 9px;
+}
+
+.rv-recent {
+    gap: 9px;
+}
+
+.rv-recent .list-toggle {
+    margin-bottom: 9px;
+    border-color: #dce6de;
+    background: #f6faf7;
+}
+
+.rv-recent-item {
+    display: block;
+    padding: 14px 88px 13px 14px;
+    border: 1px solid var(--color-divider, var(--border));
+    border-radius: 14px;
+    background: #fff;
+}
+
+.rv-recent-item:last-child {
+    border-bottom: 1px solid var(--color-divider, var(--border));
+}
+
+.rv-recent-item .rv-r-text {
+    display: block;
+    min-width: 0;
+    color: var(--color-text, var(--text));
+    font-size: 14px;
+    line-height: 1.65;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+}
+
+.rv-recent-item .meta {
+    margin-top: 8px;
+}
+
+@media (max-width: 480px) {
+    #dailySummary .sum-sec {
+        padding-right: 13px;
+        padding-left: 13px;
+    }
+
+    #dailySummary .sum-item {
+        gap: 9px;
+    }
+
+    .rv-recent-item {
+        padding-right: 78px;
+    }
+}

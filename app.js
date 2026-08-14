@@ -766,7 +766,8 @@ function renderHeroMetrics(done, total, streak) {
     setTxt("heroStreakLine", streak > 0 ? `🔥 已连续记录 ${streak} 天` : "完成任意 1 项，开启连续记录");
     setMetric("heroPending", Math.max(total - done, 0), "项");
     setMetric("heroWater", waterTotal(), "ml");
-    setMetric("heroExpense", "¥" + fmtMoney(expenseTotal(currentDate)), "");
+    const weight = day(currentDate).weight;
+    setMetric("heroWeight", weight && weight.value != null ? weight.value : "—", weight && weight.value != null ? "kg" : "");
 }
 function heroGreeting() {
     const hr = new Date().getHours();
@@ -1300,13 +1301,13 @@ function toggleList(key) {
     store.settings.listCollapsed = store.settings.listCollapsed || {};
     store.settings.listCollapsed[key] = !store.settings.listCollapsed[key];
     save();
-    ({ engPhrase: renderEnglish, thoughts: renderThoughts, knowledge: renderKnowledge, media: renderMedia, tech: renderTech }[key] || renderAll)();
+    ({ engPhrase: renderEnglish, thoughts: renderThoughts, knowledge: renderKnowledge, media: renderMedia, tech: renderTech, recentReviews: renderReviewOverview }[key] || renderAll)();
 }
-function renderCollapsibleList(elId, key, label, count, itemsHtml, emptyHtml) {
+function renderCollapsibleList(elId, key, label, count, itemsHtml, emptyHtml, alwaysToggle) {
     const el = document.getElementById(elId); if (!el) return;
     if (!count) { el.innerHTML = emptyHtml; return; }
     const collapsed = isListCollapsed(key);
-    const showToggle = count > 3 || collapsed; // 内容多时才出现收起入口
+    const showToggle = !!alwaysToggle || count > 3 || collapsed; // 内容多或调用方要求时显示收起入口
     const bar = showToggle
         ? `<div class="list-toggle" onclick="toggleList('${key}')"><span>${label} ${count} 条</span><span class="lt-caret">${collapsed ? "展开 ▸" : "收起 ▾"}</span></div>`
         : "";
@@ -1430,6 +1431,16 @@ function addReview() {
     ta.value = ""; save(); renderToday();
 }
 function delReview(i) { removeWithUndo(day().reviews, i, "复盘", renderToday); }
+function delReviewAt(d, i) {
+    const reviews = day(d).reviews;
+    if (!reviews[i]) return;
+    removeWithUndo(reviews, i, "复盘", () => {
+        renderReviews();
+        renderReviewOverview();
+        renderSummary();
+        renderTimeline();
+    });
+}
 function renderReviews() {
     const list = day().reviews;
     document.getElementById("reviewList").innerHTML = list.map((r, i) =>
@@ -1462,17 +1473,22 @@ function renderReviewOverview() {
         { b: String(o.pregDiaries.length), s: "日记" },
     ];
     const recent = [];
-    Object.keys(store.days).sort().reverse().forEach(d => {
-        (store.days[d].reviews || []).forEach(r => recent.push({ d, r }));
+    Object.keys(store.days).forEach(d => {
+        (store.days[d].reviews || []).forEach((r, i) => recent.push({ d, i, r }));
     });
     recent.sort((a, b) => (b.d + (b.r.time || "")).localeCompare(a.d + (a.r.time || "")));
-    const recentHtml = recent.slice(0, 2).map(x =>
-        `<div class="rv-recent-item"><span class="rv-r-text">${esc(trunc(x.r.text, 40))}</span><span class="rv-r-date">${x.d === todayStr() ? "今天" : x.d.slice(5)}</span></div>`).join("");
+    const recentHtml = recent.map(x =>
+        `<div class="entry entry-has-actions rv-recent-item">
+          <div class="rv-r-text">${escMultiline(x.r.text)}</div>
+          <div class="meta"><span>${x.d === todayStr() ? "今天" : x.d}${x.r.time ? ` · ${esc(x.r.time)}` : ""}</span></div>
+          ${entryActions(`editRecordText('review','${x.d}',${x.i})`, `delReviewAt('${x.d}',${x.i})`, "编辑复盘", "删除复盘")}
+        </div>`).join("");
     el.innerHTML = `
     <div class="review-metrics">${metrics.map(m => `<div class="review-metric ${m.cls || ""}"><b>${m.b}</b><span>${m.s}</span></div>`).join("")}</div>
     <button type="button" class="btn review-start-btn" onclick="reviewStart()">${reviewed ? "继续今日复盘" : "开始今日复盘"}</button>
-    ${recent.length ? `<div class="rv-recent-title">最近复盘</div><div class="rv-recent">${recentHtml}</div>` : ""}
+    ${recent.length ? `<div class="rv-recent-title">最近复盘</div><div class="rv-recent" id="recentReviewList"></div>` : ""}
   `;
+    if (recent.length) renderCollapsibleList("recentReviewList", "recentReviews", "全部复盘", recent.length, recentHtml, "", true);
     renderIcons(el);
 }
 function flash(id, msg) {
@@ -1687,6 +1703,8 @@ function renderWeight() {
         info = `上次 ${prev.d}：${prev.value} kg，${diff > 0 ? "+" + diff : diff} kg`;
     } else if (prev) info = `上次 ${prev.d}：${prev.value} kg`;
     document.getElementById("weightInfo").textContent = info;
+    const heroWeight = document.getElementById("heroWeight");
+    if (heroWeight) setMetric("heroWeight", o.weight && o.weight.value != null ? o.weight.value : "—", o.weight && o.weight.value != null ? "kg" : "");
 }
 function setSleep(quality) {
     const o = day();
@@ -1960,8 +1978,6 @@ function delExpense(i) { removeWithUndo(day().expenses, i, "开支", () => { ren
 function renderExpenses() {
     const list = day().expenses;
     document.getElementById("expenseTodayBadge").textContent = "¥" + fmtMoney(expenseTotal(currentDate));
-    const expEl = document.getElementById("heroExpense");
-    if (expEl) expEl.textContent = "¥" + fmtMoney(expenseTotal(currentDate));
     document.getElementById("expenseList").innerHTML = list.length
         ? list.map((e, i) => `<div class="entry entry-has-actions"><span class="tag">${catIcon(e.cat)} ${e.cat}</span><b>¥${fmtMoney(e.amount)}</b>${e.note ? " · " + esc(e.note) : ""}
 <div class="meta"><span>${e.time}</span></div>
