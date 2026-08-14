@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#355a4f">
     <link rel="apple-touch-icon" href="icon-180.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=66">
+    <link rel="stylesheet" href="style.css?v=67">
 </head>
 
 <body>
@@ -117,7 +117,7 @@
                     data-ic="chevron-left"></span></button>
             <div class="card todo-center-hero">
                 <h2><span class="tico" data-ic="list"></span>全部待办</h2>
-                <p>集中处理所有日期留下的临时任务。完成后会记录实际完成日期，也可以随时修改或恢复。</p>
+                <p>集中处理所有日期留下的临时任务。未完成任务可编辑或移动日期；完成后仅支持恢复或删除。</p>
                 <div class="todo-center-metrics">
                     <div><b id="todoPendingCount">0</b><span>未完成</span></div>
                     <div><b id="todoDoneCount">0</b><span>已完成</span></div>
@@ -332,7 +332,11 @@
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="thermometer"></span>孕期反应<span
                         class="chevron-icon" data-ic="chevron-down"></span></h2>
                 <div class="supp-list" id="symptomList"></div>
-                <button class="supp-add-btn" onclick="addSymptomTag()">+ 自定义标签</button>
+                <div class="symptom-quick-actions">
+                    <button class="supp-add-btn" onclick="addSymptomTag()">+ 自定义标签</button>
+                    <button class="supp-add-btn quick-diary-btn" onclick="quickPregDiary()"><span
+                            data-ic="notebook"></span>快速记孕期日记</button>
+                </div>
             </div>
         </div>
 
@@ -659,9 +663,28 @@
         </div>
     </div>
 
+    <div class="sheet editor-sheet" id="editorSheet" role="dialog" aria-modal="true"
+        aria-labelledby="editorSheetTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title" id="editorSheetTitle">编辑记录</div>
+        <p class="editor-hint" id="editorHint">支持长文本和换行；按 ⌘/Ctrl + Enter 快速保存</p>
+        <div id="editorTextField">
+            <textarea id="editorTextarea" rows="9" placeholder="请输入内容…" oninput="updateEditorCount()"></textarea>
+            <div class="editor-count" id="editorCount">0 字</div>
+        </div>
+        <label class="editor-date-field" id="editorDateField" hidden>
+            <span>目标日期</span>
+            <input type="date" id="editorDateInput">
+        </label>
+        <div class="editor-actions">
+            <button class="btn ghost" type="button" onclick="closeSheet()">取消</button>
+            <button class="btn" type="button" onclick="saveEditorSheet()">保存</button>
+        </div>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=66"></script>
+    <script src="app.js?v=67"></script>
 </body>
 
 </html>

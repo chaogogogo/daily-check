@@ -69,7 +69,22 @@ function makeRecordId(prefix) {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return `${prefix}_${crypto.randomUUID()}`;
     return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
 }
-function normalizeThoughtRecord(t) {
+function recordDateTime(date, time) {
+    return `${date || todayStr()}T${time || "00:00"}:00`;
+}
+function recordTimestamp(record, fallbackDate) {
+    return (record && record.createdAt) || recordDateTime((record && record.date) || fallbackDate, record && record.time);
+}
+function recordTimestampValue(record, fallbackDate) {
+    const value = Date.parse(recordTimestamp(record, fallbackDate));
+    return Number.isFinite(value) ? value : 0;
+}
+function normalizeTimestampedRecord(record, recordDate) {
+    if (!record || typeof record !== "object" || record.createdAt) return false;
+    record.createdAt = recordDateTime(record.date || recordDate, record.time);
+    return true;
+}
+function normalizeThoughtRecord(t, recordDate) {
     if (!t || typeof t !== "object") return false;
     let changed = false;
     if (!Array.isArray(t.tags)) {
@@ -79,6 +94,8 @@ function normalizeThoughtRecord(t) {
     const tags = Array.from(new Set(t.tags.map(x => String(x || "").trim()).filter(Boolean)));
     if (tags.length !== t.tags.length || tags.some((x, i) => x !== t.tags[i])) { t.tags = tags; changed = true; }
     if (Object.prototype.hasOwnProperty.call(t, "tag")) { delete t.tag; changed = true; }
+    if (!t.date) { t.date = recordDate; changed = true; }
+    if (normalizeTimestampedRecord(t, recordDate)) changed = true;
     return changed;
 }
 function normalizeTaskRecord(t, createdDate, index) {
@@ -86,6 +103,7 @@ function normalizeTaskRecord(t, createdDate, index) {
     let changed = false;
     if (!t.id) { t.id = `task_${String(createdDate).replace(/-/g, "")}_${index}_${Math.random().toString(36).slice(2, 8)}`; changed = true; }
     if (!t.createdDate) { t.createdDate = createdDate; changed = true; }
+    if (!t.scheduledDate || t.scheduledDate !== createdDate) { t.scheduledDate = createdDate; changed = true; }
     if (t.createdTime == null) { t.createdTime = ""; changed = true; }
     if (t.done) {
         if (!t.completedDate) { t.completedDate = createdDate; changed = true; }
@@ -101,7 +119,8 @@ function migrateStoreData(s) {
     let changed = false;
     Object.keys(s.days || {}).forEach(d => {
         const o = s.days[d] || {};
-        (o.thoughts || []).forEach(t => { if (normalizeThoughtRecord(t)) changed = true; });
+        (o.thoughts || []).forEach(t => { if (normalizeThoughtRecord(t, d)) changed = true; });
+        (o.pregDiaries || []).forEach(t => { if (normalizeTimestampedRecord(t, d)) changed = true; });
         (o.tasks || []).forEach((t, i) => { if (normalizeTaskRecord(t, d, i)) changed = true; });
     });
     return changed;
@@ -160,14 +179,15 @@ function day(d) {
     delete o.meals.snack;
     o.pregDiary = o.pregDiary || "";
     o.pregDiaryTime = o.pregDiaryTime || "";
-    o.pregDiaries = o.pregDiaries || [];   // [{text,time}]
+    o.pregDiaries = o.pregDiaries || [];   // [{text,time,createdAt}]
     if (o.pregDiary && o.pregDiary.trim()) o.pregDiaries.push({ text: o.pregDiary.trim(), time: o.pregDiaryTime || "" });
     delete o.pregDiary; delete o.pregDiaryTime;
     o.media = o.media || [];   // [{text,tag,time}] 自媒体运营
-    o.thoughts = o.thoughts || [];   // [{text,tags:[],time,date}]
+    o.thoughts = o.thoughts || [];   // [{text,tags:[],time,date,createdAt}]
     o.knowledge = o.knowledge || [];   // [{text,type,time}]
-    o.tasks = o.tasks || [];   // [{id,text,done,createdDate,createdTime,completedDate,completedTime}]
-    o.thoughts.forEach(normalizeThoughtRecord);
+    o.tasks = o.tasks || [];   // [{id,text,done,createdDate,createdTime,scheduledDate,completedDate,completedTime}]
+    o.pregDiaries.forEach(t => normalizeTimestampedRecord(t, d));
+    o.thoughts.forEach(t => normalizeThoughtRecord(t, d));
     o.tasks.forEach((t, i) => normalizeTaskRecord(t, d, i));
     o.weight = o.weight || null;   // {value,time,note}
     o.sleep = o.sleep || null;   // {quality:"good"|"mid"|"bad",time}
@@ -346,6 +366,7 @@ const ICON_PATHS = {
     'chevron-right': '<path d="m9 18 6-6-6-6"/>',
     leaf: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v2"/>',
     run: '<circle cx="13" cy="4" r="2"/><path d="m8 22 3-7 2 2v5"/><path d="M6 12l4-5 4 2 3 3"/><path d="M17 22l-3-5"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
     sparkle: '<path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6Z"/>',
@@ -362,6 +383,12 @@ function renderIcons(root) {
         el.innerHTML = icon(el.dataset.ic);
         el.dataset.icDone = "1";
     });
+}
+function entryActions(editCall, deleteCall, editLabel, deleteLabel) {
+    return `<div class="entry-actions">
+      ${editCall ? `<button type="button" class="entry-edit" onclick="${editCall}" aria-label="${escAttr(editLabel || "编辑记录")}" title="${escAttr(editLabel || "编辑记录")}">${icon("edit")}</button>` : ""}
+      ${deleteCall ? `<button type="button" class="entry-delete" onclick="${deleteCall}" aria-label="${escAttr(deleteLabel || "删除记录")}" title="${escAttr(deleteLabel || "删除记录")}">${icon("trash")}</button>` : ""}
+    </div>`;
 }
 
 /* ==================== Tabs ==================== */
@@ -437,12 +464,109 @@ function openSheet(id) {
     scrim.classList.add("open");
     sheet.classList.add("open");
 }
+let editorSaveHandler = null;
+let editorAllowEmpty = false;
+let editorMode = "text";
+function updateEditorCount() {
+    const ta = document.getElementById("editorTextarea");
+    const count = document.getElementById("editorCount");
+    if (ta && count) count.textContent = `${ta.value.length} 字`;
+}
+function openTextEditor(options) {
+    const ta = document.getElementById("editorTextarea");
+    if (!ta) return;
+    closeSheet();
+    editorMode = "text";
+    editorAllowEmpty = !!options.allowEmpty;
+    editorSaveHandler = options.onSave;
+    setTxt("editorSheetTitle", options.title || "编辑记录");
+    setTxt("editorHint", options.hint || "支持长文本和换行；按 ⌘/Ctrl + Enter 快速保存");
+    ta.value = options.value || "";
+    ta.placeholder = options.placeholder || "请输入内容…";
+    document.getElementById("editorTextField").hidden = false;
+    document.getElementById("editorDateField").hidden = true;
+    updateEditorCount();
+    openSheet("editorSheet");
+    setTimeout(() => {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+    }, 40);
+}
+function openDateEditor(options) {
+    closeSheet();
+    editorMode = "date";
+    editorAllowEmpty = false;
+    editorSaveHandler = options.onSave;
+    setTxt("editorSheetTitle", options.title || "选择日期");
+    setTxt("editorHint", options.hint || "选择后，这条 Todo 会出现在对应日期。创建时间保持不变。");
+    document.getElementById("editorTextField").hidden = true;
+    document.getElementById("editorDateField").hidden = false;
+    const input = document.getElementById("editorDateInput");
+    input.value = options.value || currentDate;
+    openSheet("editorSheet");
+    setTimeout(() => {
+        input.focus();
+        if (input.showPicker) { try { input.showPicker(); } catch (e) { } }
+    }, 40);
+}
+function saveEditorSheet() {
+    if (!editorSaveHandler) return;
+    let value;
+    if (editorMode === "date") {
+        value = document.getElementById("editorDateInput").value;
+        if (!value) { showToast("请选择日期"); return; }
+    } else {
+        value = document.getElementById("editorTextarea").value.trim();
+        if (!value && !editorAllowEmpty) { showToast("内容不能为空"); return; }
+    }
+    const handler = editorSaveHandler;
+    editorSaveHandler = null;
+    closeSheet();
+    handler(value);
+}
+function editRecordText(type, d, i, extra) {
+    const o = day(d);
+    let target = null, field = "text", title = "编辑记录", allowEmpty = false;
+    if (type === "review") { target = o.reviews[i]; title = "编辑复盘"; }
+    else if (type === "gratitude") { target = o.gratitude[i]; title = "编辑感恩记录"; }
+    else if (type === "exercise") { target = o.exercises[i]; title = "编辑锻炼记录"; }
+    else if (type === "bowel") { target = o.bowels[i]; field = "note"; title = "编辑排便备注"; allowEmpty = true; }
+    else if (type === "pregDiary") { target = o.pregDiaries[i]; title = "编辑孕期日记"; }
+    else if (type === "tech") { target = o.techLogs[i]; title = "编辑技术笔记"; }
+    else if (type === "media") { target = o.media[i]; title = "编辑运营记录"; }
+    else if (type === "thought") { target = o.thoughts[i]; title = "编辑想法"; }
+    else if (type === "knowledge") { target = o.knowledge[i]; title = "编辑知识记录"; }
+    else if (type === "phrase") { target = o.english.phrases[i]; title = "编辑英语知识点"; }
+    else if (type === "engNote") { target = o.english.tasks[extra] && o.english.tasks[extra].notes && o.english.tasks[extra].notes[i]; title = "编辑英语备注"; }
+    else if (type === "expense") { target = o.expenses[i]; field = "note"; title = "编辑开支备注"; allowEmpty = true; }
+    else if (type === "wishItem") { target = o.wishes[i]; field = "item"; title = "编辑想买物品"; }
+    else if (type === "wishReason") { target = o.wishes[i]; field = "reason"; title = "编辑购买理由"; allowEmpty = true; }
+    if (!target) return;
+    openTextEditor({
+        title,
+        value: target[field] || "",
+        allowEmpty,
+        onSave: value => {
+            target[field] = value;
+            target.updatedAt = recordDateTime(todayStr(), nowTime());
+            save(); renderAll(); showToast("已保存修改");
+        },
+    });
+}
 function closeSheet() {
+    const editor = document.getElementById("editorSheet");
+    const editorWasOpen = !!(editor && editor.classList.contains("open"));
     document.querySelectorAll(".sheet.open").forEach(s => s.classList.remove("open"));
     const scrim = document.getElementById("sheetScrim");
     if (scrim) scrim.classList.remove("open");
+    if (editorWasOpen) editorSaveHandler = null;
 }
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeSheet();
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && document.getElementById("editorSheet").classList.contains("open")) {
+        e.preventDefault(); saveEditorSheet();
+    }
+});
 
 function expandCollapseCard(collapseId) {
     if (!collapseId) return;
@@ -699,7 +823,7 @@ function renderEnglish() {
         <input id="engNote_${t.id}" type="text" class="eng-note-input" placeholder="学了啥？可选，填了会记在下面" onkeydown="if(event.key==='Enter'){event.preventDefault();logEngTask('${t.id}')}">
         <button class="btn small" onclick="logEngTask('${t.id}')">打卡</button>
       </div>
-      ${notes.length ? `<div class="eng-note-list">${notes.map((n, i) => `<div class="eng-note-item"><span class="eng-note-text">${escMultiline(n.text)}</span><span class="eng-note-time">${n.time}</span><button class="del" onclick="delEngTaskNote('${t.id}',${i})">✕</button></div>`).join("")}</div>` : ""}
+      ${notes.length ? `<div class="eng-note-list">${notes.map((n, i) => `<div class="eng-note-item entry-has-actions"><span class="eng-note-text">${escMultiline(n.text)}</span><span class="eng-note-time">${n.time}</span>${entryActions(`editRecordText('engNote','${currentDate}',${i},'${t.id}')`, `delEngTaskNote('${t.id}',${i})`, "编辑英语备注", "删除英语备注")}</div>`).join("")}</div>` : ""}
     </div>`;
     }).join("");
     // 汇总全部知识点（含当天，近到远）
@@ -710,9 +834,9 @@ function renderEnglish() {
     });
     document.getElementById("engPhraseCount").textContent = items.length ? `已积累 ${items.length} 条` : "";
     renderCollapsibleList("engPhraseList", "engPhrase", "知识点", items.length,
-        items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.p.text)}
+        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.p.text)}
 <div class="meta"><span>${x.d} ${x.p.time}</span></div>
-<button class="del" onclick="delEngPhrase('${x.d}',${x.i})">✕</button></div>`).join(""),
+${entryActions(`editRecordText('phrase','${x.d}',${x.i})`, `delEngPhrase('${x.d}',${x.i})`, "编辑英语知识点", "删除英语知识点")}</div>`).join(""),
         `<div class="empty-tip">还没有知识点，听到好表达随手记一条吧 ✨</div>`);
     renderGrowthOverview();
 }
@@ -727,7 +851,7 @@ function addTask() {
     const text = input.value.trim(); if (!text) return;
     day().tasks.push({
         id: makeRecordId("task"), text, done: false,
-        createdDate: currentDate, createdTime: nowTime(),
+        createdDate: currentDate, createdTime: nowTime(), scheduledDate: currentDate,
         completedDate: "", completedTime: "", updatedAt: "",
     });
     input.value = ""; save(); renderToday();
@@ -769,23 +893,37 @@ function toggleTask(d, id) {
 }
 function editTask(d, id) {
     const loc = taskLocation(d, id); if (!loc) return;
-    const value = prompt("编辑任务：", loc.t.text);
-    if (value === null) return;
-    const text = value.trim();
-    if (!text) { alert("任务内容不能为空"); return; }
-    loc.t.text = text;
-    loc.t.updatedAt = `${todayStr()} ${nowTime()}`;
-    save(); renderTaskViews();
+    if (loc.t.done) { showToast("已完成任务请先恢复后再编辑"); return; }
+    openTextEditor({
+        title: "编辑 Todo",
+        value: loc.t.text,
+        placeholder: "写清楚要做什么；支持长文本和换行…",
+        onSave: text => {
+            const latest = taskLocation(d, id);
+            if (!latest || latest.t.done) { showToast("任务状态已变化，请重试"); return; }
+            latest.t.text = text;
+            latest.t.updatedAt = recordDateTime(todayStr(), nowTime());
+            save(); renderTaskViews(); showToast("Todo 已更新");
+        },
+    });
 }
-function updateTaskCompletionDate(d, id, value) {
+function moveTask(d, id) {
     const loc = taskLocation(d, id); if (!loc) return;
-    if (!value) { renderTodoCenter(); return; }
-    if (value > todayStr()) { alert("完成日期不能晚于今天"); renderTodoCenter(); return; }
-    loc.t.done = true;
-    loc.t.completedDate = value;
-    loc.t.completedTime = loc.t.completedTime || nowTime();
-    loc.t.updatedAt = `${todayStr()} ${nowTime()}`;
-    save(); renderTaskViews();
+    if (loc.t.done) { showToast("已完成任务不能移动日期"); return; }
+    openDateEditor({
+        title: "移动 Todo 到指定日期",
+        value: d,
+        onSave: targetDate => {
+            const latest = taskLocation(d, id);
+            if (!latest || latest.t.done) { showToast("任务状态已变化，请重试"); return; }
+            if (targetDate === d) { showToast("Todo 已在这个日期"); return; }
+            const task = latest.arr.splice(latest.i, 1)[0];
+            task.scheduledDate = targetDate;
+            task.updatedAt = recordDateTime(todayStr(), nowTime());
+            day(targetDate).tasks.push(task);
+            save(); renderTaskViews(); showToast(`已移动到 ${targetDate}`);
+        },
+    });
 }
 function delTask(d, id) {
     const loc = taskLocation(d, id); if (!loc) return;
@@ -794,20 +932,23 @@ function delTask(d, id) {
 function taskRow(t, d, center) {
     const created = t.createdDate || d;
     const completed = t.completedDate || "";
-    const meta = center
-        ? `创建 ${created}${t.createdTime ? " " + t.createdTime : ""}`
-        : (t.done && completed ? `${completed === todayStr() ? "今天" : completed} ${t.completedTime || ""}` : "");
+    const planned = t.scheduledDate || d;
+    const meta = t.done && completed
+        ? `完成 ${completed === todayStr() ? "今天" : completed}${t.completedTime ? " " + t.completedTime : ""}`
+        : (center ? `创建 ${created}${t.createdTime ? " " + t.createdTime : ""}${planned !== created ? ` · 计划 ${planned}` : ""}` : "");
     return `<div class="task-item ${t.done ? "done" : ""}">
-      <button class="task-check" onclick="toggleTask('${d}','${t.id}')" aria-label="${t.done ? "恢复为待办" : "标记完成"}">${t.done ? icon("check") : ""}</button>
+      ${t.done ? "" : `<button class="task-check" onclick="toggleTask('${d}','${t.id}')" aria-label="标记完成" title="标记完成"></button>`}
       <div class="task-content">
-        <button type="button" class="task-text" onclick="editTask('${d}','${t.id}')" aria-label="编辑任务">${escMultiline(t.text)}</button>
+        ${t.done
+            ? `<div class="task-text task-text-readonly">${escMultiline(t.text)}</div>`
+            : `<button type="button" class="task-text" onclick="editTask('${d}','${t.id}')" aria-label="编辑任务" title="点击编辑">${escMultiline(t.text)}</button>`}
         ${meta ? `<div class="task-meta">${esc(meta)}</div>` : ""}
-        ${center && t.done ? `<label class="task-completed-date">完成日期 <input type="date" max="${todayStr()}" value="${completed}" onchange="updateTaskCompletionDate('${d}','${t.id}',this.value)"></label>` : ""}
       </div>
       <div class="task-actions">
-        <button type="button" onclick="editTask('${d}','${t.id}')">编辑</button>
-        ${t.done ? `<button type="button" onclick="toggleTask('${d}','${t.id}')">恢复</button>` : ""}
-        <button type="button" class="task-del" onclick="delTask('${d}','${t.id}')" aria-label="删除任务">✕</button>
+        ${t.done
+            ? `<button type="button" onclick="toggleTask('${d}','${t.id}')" aria-label="恢复为待办" title="恢复为待办">${icon("undo")}</button>`
+            : `<button type="button" onclick="moveTask('${d}','${t.id}')" aria-label="移动到指定日期" title="移动到指定日期">${icon("calendar")}</button>`}
+        <button type="button" class="task-del" onclick="delTask('${d}','${t.id}')" aria-label="删除任务" title="删除任务">${icon("trash")}</button>
       </div>
     </div>`;
 }
@@ -854,7 +995,7 @@ function renderTodoCenter() {
         : `<div class="empty-tip">没有未完成任务，轻松一下吧 🎉</div>`;
     if (done.length) {
         html += `<button type="button" class="todo-done-toggle ${todoCenterShowDone ? "open" : ""}" onclick="toggleTodoCenterDone()"><span data-ic="chevron-down"></span>已完成 ${done.length} 项</button>`;
-        if (todoCenterShowDone) html += `<div class="todo-center-heading done-heading"><b>已完成</b><span>可以修改完成日期或恢复为待办</span></div><div class="todo-center-group done-group">${done.map(x => taskRow(x.t, x.d, true)).join("")}</div>`;
+        if (todoCenterShowDone) html += `<div class="todo-center-heading done-heading"><b>已完成</b><span>仅支持恢复或删除</span></div><div class="todo-center-group done-group">${done.map(x => taskRow(x.t, x.d, true)).join("")}</div>`;
     }
     list.innerHTML = html;
     renderIcons(list);
@@ -1055,7 +1196,7 @@ function renderRecordTimeline() {
     const badge = document.getElementById("recordDateBadge");
     if (badge) badge.textContent = currentDate === todayStr() ? "今天" : dateLabel(currentDate);
     const ev = collectTimeline();
-    recordRefs = ev.map(e => ({ ref: e.ref, timeField: e.timeField || "time" }));
+    recordRefs = ev.map(e => ({ ref: e.ref, timeField: e.timeField || "time", date: currentDate }));
     let items = ev.map((e, i) => ({ e, i }));   // 保留原始 index 供改时间
     if (recordFilter !== "all") items = items.filter(x => x.e.cat === recordFilter);
     const searchEl = document.getElementById("recordSearch");
@@ -1076,6 +1217,9 @@ function setRecordTime(i, val) {
     const target = recordRefs[i];
     if (!target || !target.ref || !val) { renderRecordTimeline(); return; }
     target.ref[target.timeField] = val;
+    if (target.timeField === "time" && target.ref.createdAt) {
+        target.ref.createdAt = recordDateTime(target.ref.date || target.date, val);
+    }
     save(); renderRecordTimeline();
 }
 function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
@@ -1237,8 +1381,8 @@ function delReview(i) { removeWithUndo(day().reviews, i, "复盘", renderToday);
 function renderReviews() {
     const list = day().reviews;
     document.getElementById("reviewList").innerHTML = list.map((r, i) =>
-        `<div class="entry">${escMultiline(r.text)}<div class="meta"><span>${r.time}</span></div>
-     <button class="del" onclick="delReview(${i})">✕</button></div>`).join("");
+        `<div class="entry entry-has-actions">${escMultiline(r.text)}<div class="meta"><span>${r.time}</span></div>
+     ${entryActions(`editRecordText('review','${currentDate}',${i})`, `delReview(${i})`, "编辑复盘", "删除复盘")}</div>`).join("");
 }
 
 /* ==================== 复盘概览（Phase 6） ==================== */
@@ -1331,8 +1475,8 @@ function delGratitude(i) { removeWithUndo(day().gratitude, i, "感恩", renderTo
 function renderGratitude() {
     const list = day().gratitude;
     document.getElementById("gratitudeList").innerHTML = list.map((g, i) =>
-        `<div class="entry">${escMultiline(g.text)}<div class="meta"><span>${g.time}</span></div>
-     <button class="del" onclick="delGratitude(${i})">✕</button></div>`).join("");
+        `<div class="entry entry-has-actions">${escMultiline(g.text)}<div class="meta"><span>${g.time}</span></div>
+     ${entryActions(`editRecordText('gratitude','${currentDate}',${i})`, `delGratitude(${i})`, "编辑感恩记录", "删除感恩记录")}</div>`).join("");
 }
 
 /* ==================== 三餐 ==================== */
@@ -1411,8 +1555,8 @@ function renderExercises() {
     const el = document.getElementById("exerciseList");
     if (!el) return;
     el.innerHTML = list.map((x, i) =>
-        `<div class="entry">${escMultiline(x.text)}<div class="meta"><span>${x.time}</span></div>
-     <button class="del" onclick="delExercise(${i})">✕</button></div>`).join("");
+        `<div class="entry entry-has-actions">${escMultiline(x.text)}<div class="meta"><span>${x.time}</span></div>
+     ${entryActions(`editRecordText('exercise','${currentDate}',${i})`, `delExercise(${i})`, "编辑锻炼记录", "删除锻炼记录")}</div>`).join("");
 }
 
 /* ==================== 排便记录（随时添加） ==================== */
@@ -1458,9 +1602,9 @@ function renderBowel() {
         if (b.honey === true) parts.push("用了蜂蜜露");
         if (b.honey === false) parts.push("未用蜂蜜露");
         if (b.healthy) parts.push(healthLabel[b.healthy] || "");
-        return `<div class="entry">💩 ${parts.join(" · ")}${b.note ? "<br>" + escMultiline(b.note) : ""}
+        return `<div class="entry entry-has-actions">💩 ${parts.join(" · ")}${b.note ? "<br>" + escMultiline(b.note) : ""}
        <div class="meta"><span>${b.time}</span></div>
-       <button class="del" onclick="delBowel(${i})">✕</button></div>`;
+       ${entryActions(`editRecordText('bowel','${currentDate}',${i})`, `delBowel(${i})`, "编辑排便备注", "删除排便记录")}</div>`;
     }).join("");
 }
 
@@ -1526,6 +1670,19 @@ function renderSymptoms() {
     document.getElementById("symptomList").innerHTML = store.settings.symptomTags.map(t =>
         `<div class="supp-chip ${active.includes(t) ? "done" : ""}" onclick="toggleSymptom('${t.replace(/'/g, "\\'")}')">${active.includes(t) ? "✓ " : ""}${t}</div>`).join("");
 }
+function quickPregDiary() {
+    openTextEditor({
+        title: "快速记录孕期日记",
+        value: "",
+        placeholder: "记录此刻的身体感受、宝宝胎动、心情或产检情况…",
+        hint: `将保存到 ${currentDate}，自动记录当前时间；支持长文本和换行`,
+        onSave: text => {
+            const time = nowTime();
+            day().pregDiaries.push({ text, time, createdAt: recordDateTime(currentDate, time) });
+            save(); renderAll(); showToast("孕期日记已记录");
+        },
+    });
+}
 
 /* ==================== 技术学习 ==================== */
 /* ==================== 成长概览（Phase 4） ==================== */
@@ -1587,9 +1744,9 @@ function renderTech() {
         (store.days[d].techLogs || []).forEach((t, i) => items.push({ d, i, t }));
     });
     document.getElementById("techList") && renderCollapsibleList("techList", "tech", "技术笔记", items.length,
-        items.map(x => `<div class="entry"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.t.text)}
+        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.d === todayStr() ? "今天" : x.d}</span>${escMultiline(x.t.text)}
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
-<button class="del" onclick="delTech('${x.d}',${x.i})">✕</button></div>`).join(""),
+${entryActions(`editRecordText('tech','${x.d}',${x.i})`, `delTech('${x.d}',${x.i})`, "编辑技术笔记", "删除技术笔记")}</div>`).join(""),
         `<div class="empty-tip">今天学了什么？随手记一条，同时完成"技术学习"打卡 💪</div>`);
     renderGrowthOverview();
 }
@@ -1597,15 +1754,18 @@ function renderTech() {
 /* ==================== 孕期日记 ==================== */        function addPregDiary() {
     const ta = document.getElementById("pregDiaryInput");
     const text = ta.value.trim(); if (!text) return;
-    day().pregDiaries.push({ text, time: nowTime() });
+    const time = nowTime();
+    day().pregDiaries.push({ text, time, createdAt: recordDateTime(currentDate, time) });
     ta.value = ""; save(); renderToday();
 }
 function delPregDiary(i) { removeWithUndo(day().pregDiaries, i, "孕期日记", renderToday); }
 function renderPregDiaries() {
-    const list = day().pregDiaries;
-    document.getElementById("pregDiaryList").innerHTML = list.map((p, i) =>
-        `<div class="entry">${escMultiline(p.text)}<div class="meta"><span>${p.time}</span></div>
-     <button class="del" onclick="delPregDiary(${i})">✕</button></div>`).join("");
+    const list = day().pregDiaries.map((p, i) => ({ p, i }))
+        .sort((a, b) => recordTimestampValue(b.p, currentDate) - recordTimestampValue(a.p, currentDate));
+    const el = document.getElementById("pregDiaryList");
+    el.innerHTML = list.map(({ p, i }) =>
+        `<div class="entry entry-has-actions">${escMultiline(p.text)}<div class="meta"><span>${p.time}</span></div>
+     ${entryActions(`editRecordText('pregDiary','${currentDate}',${i})`, `delPregDiary(${i})`, "编辑孕期日记", "删除孕期日记")}</div>`).join("");
 }
 
 /* ==================== 自媒体运营 ==================== */
@@ -1634,9 +1794,9 @@ function renderMedia() {
         `<button class="filter-chip ${mediaFilter === t ? "sel" : ""}" onclick="setMediaFilter('${t.replace(/'/g, "\\'")}')">${t} (${t === "全部" ? all.length : all.filter(x => x.m.tag === t).length})</button>`).join("");
     const items = mediaFilter === "全部" ? all : all.filter(x => x.m.tag === mediaFilter);
     renderCollapsibleList("mediaList", "media", "运营", items.length,
-        items.map(x => `<div class="entry"><span class="tag">${x.m.tag}</span>${escMultiline(x.m.text)}
+        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.m.tag}</span>${escMultiline(x.m.text)}
 <div class="meta"><span>${x.d} ${x.m.time}</span></div>
-<button class="del" onclick="delMedia('${x.d}',${x.i})">✕</button></div>`).join(""),
+${entryActions(`editRecordText('media','${x.d}',${x.i})`, `delMedia('${x.d}',${x.i})`, "编辑运营记录", "删除运营记录")}</div>`).join(""),
         `<div class="empty-tip">还没有运营记录，发布一条 / 整理素材就记一条吧</div>`);
     renderGrowthOverview();
 }
@@ -1670,7 +1830,8 @@ function thoughtTagsOf(t) {
 function addThought() {
     const ta = document.getElementById("thoughtInput");
     const text = ta.value.trim(); if (!text) return;
-    day().thoughts.push({ text, tags: [...thoughtTagsSelected], time: nowTime(), date: currentDate });
+    const time = nowTime();
+    day().thoughts.push({ text, tags: [...thoughtTagsSelected], time, date: currentDate, createdAt: recordDateTime(currentDate, time) });
     ta.value = "";
     thoughtTagsSelected = [];
     save(); renderThoughtTagRow(); renderThoughts(); renderTimeline();
@@ -1678,20 +1839,21 @@ function addThought() {
 function delThought(d, i) { removeWithUndo(day(d).thoughts, i, "想法", () => { renderThoughts(); renderTimeline(); }); }
 function setThoughtFilter(tag) { thoughtFilter = tag; renderThoughts(); }
 function renderThoughts() {
-    // 展示所有日期的想法（近到远），方便回顾整理
+    // 使用完整时间戳全局排序，避免先按日期桶、再按插入顺序造成错序。
     const all = [];
-    Object.keys(store.days).sort().reverse().forEach(d => {
+    Object.keys(store.days).forEach(d => {
         (store.days[d].thoughts || []).forEach((t, i) => all.push({ d, i, t }));
     });
+    all.sort((a, b) => recordTimestampValue(b.t, b.d) - recordTimestampValue(a.t, a.d));
     const tags = ["全部", ...Array.from(new Set(all.flatMap(x => thoughtTagsOf(x.t))))];
     if (!tags.includes(thoughtFilter)) thoughtFilter = "全部";
     document.getElementById("thoughtFilterRow").innerHTML = tags.length > 1 ? tags.map(t =>
         `<button class="filter-chip ${thoughtFilter === t ? "sel" : ""}" onclick="setThoughtFilter('${t.replace(/'/g, "\\'")}')">${esc(t)} (${t === "全部" ? all.length : all.filter(x => thoughtTagsOf(x.t).includes(t)).length})</button>`).join("") : "";
     const items = thoughtFilter === "全部" ? all : all.filter(x => thoughtTagsOf(x.t).includes(thoughtFilter));
     renderCollapsibleList("thoughtList", "thoughts", "想法", items.length,
-        items.map(x => `<div class="entry">${thoughtTagsOf(x.t).map(t => `<span class="tag">${esc(t)}</span>`).join("")}${escMultiline(x.t.text)}
+        items.map(x => `<div class="entry entry-has-actions">${thoughtTagsOf(x.t).map(t => `<span class="tag">${esc(t)}</span>`).join("")}${escMultiline(x.t.text)}
 <div class="meta"><span>${x.d} ${x.t.time}</span></div>
-<button class="del" onclick="delThought('${x.d}',${x.i})">✕</button></div>`).join(""),
+${entryActions(`editRecordText('thought','${x.d}',${x.i})`, `delThought('${x.d}',${x.i})`, "编辑想法", "删除想法")}</div>`).join(""),
         `<div class="empty-tip">还没有想法碎片，随手记一条吧</div>`);
 }
 
@@ -1715,9 +1877,9 @@ function renderKnowledge() {
         (store.days[d].knowledge || []).forEach((k, i) => items.push({ d, i, k }));
     });
     renderCollapsibleList("knowledgeList", "knowledge", "知识", items.length,
-        items.map(x => `<div class="entry"><span class="tag">${x.k.type}</span>${escMultiline(x.k.text)}
+        items.map(x => `<div class="entry entry-has-actions"><span class="tag">${x.k.type}</span>${escMultiline(x.k.text)}
 <div class="meta"><span>${x.d} ${x.k.time}</span></div>
-<button class="del" onclick="delKnowledge('${x.d}',${x.i})">✕</button></div>`).join(""),
+${entryActions(`editRecordText('knowledge','${x.d}',${x.i})`, `delKnowledge('${x.d}',${x.i})`, "编辑知识记录", "删除知识记录")}</div>`).join(""),
         `<div class="empty-tip">今天听了什么播客、看了什么好文章？记下来吧</div>`);
     renderGrowthOverview();
 }
@@ -1749,9 +1911,9 @@ function renderExpenses() {
     const expEl = document.getElementById("heroExpense");
     if (expEl) expEl.textContent = "¥" + fmtMoney(expenseTotal(currentDate));
     document.getElementById("expenseList").innerHTML = list.length
-        ? list.map((e, i) => `<div class="entry"><span class="tag">${catIcon(e.cat)} ${e.cat}</span><b>¥${fmtMoney(e.amount)}</b>${e.note ? " · " + esc(e.note) : ""}
+        ? list.map((e, i) => `<div class="entry entry-has-actions"><span class="tag">${catIcon(e.cat)} ${e.cat}</span><b>¥${fmtMoney(e.amount)}</b>${e.note ? " · " + esc(e.note) : ""}
 <div class="meta"><span>${e.time}</span></div>
-<button class="del" onclick="delExpense(${i})">✕</button></div>`).join("")
+${entryActions(`editRecordText('expense','${currentDate}',${i})`, `delExpense(${i})`, "编辑开支备注", "删除开支")}</div>`).join("")
         : `<div class="empty-tip">今天还没有记账，点上方分类记一笔吧</div>`;
 }
 function addWish() {
@@ -1789,9 +1951,9 @@ function renderWishes() {
                 head = `<span class="tag">🧊 冷静 ${coolDays} 天</span>`;
                 actions = `<div class="wish-actions"><button class="btn small" onclick="setWishStatus('${x.d}',${x.i},'resisted')">✋ 忍住了</button><button class="btn small ghost" onclick="setWishStatus('${x.d}',${x.i},'bought')">🛒 还是买了</button></div>`;
             }
-            return `<div class="entry">${head} <b>${esc(w.item)}</b>${w.amount ? " · ¥" + fmtMoney(w.amount) : ""}${w.reason ? `<div class="wish-reason">${escMultiline(w.reason)}</div>` : ""}
+            return `<div class="entry entry-has-actions">${head} <b>${esc(w.item)}</b>${w.amount ? " · ¥" + fmtMoney(w.amount) : ""}<div class="wish-reason-row"><div class="wish-reason ${w.reason ? "" : "empty"}">${w.reason ? escMultiline(w.reason) : "添加购买理由"}</div><button type="button" class="wish-reason-edit" onclick="editRecordText('wishReason','${x.d}',${x.i})" aria-label="编辑购买理由" title="编辑购买理由">${icon("edit")}</button></div>
 <div class="meta"><span>${x.d} ${w.time}</span></div>${actions}
-<button class="del" onclick="delWish('${x.d}',${x.i})">✕</button></div>`;
+${entryActions(`editRecordText('wishItem','${x.d}',${x.i})`, `delWish('${x.d}',${x.i})`, "编辑想买物品", "删除想买记录")}</div>`;
         }).join("")
         : `<div class="empty-tip">还没有想买清单，冲动消费前先加进来冷静一下 🧊</div>`;
 }
@@ -2216,10 +2378,10 @@ const TEXT_MODULES = [
 ];
 function moduleEntries(mod) {
     const arr = [];
-    Object.keys(store.days).sort().reverse().forEach(d => {
+    Object.keys(store.days).forEach(d => {
         (mod.get(store.days[d]) || []).forEach(e => arr.push({ d, e }));
     });
-    return arr;
+    return arr.sort((a, b) => recordTimestampValue(b.e, b.d) - recordTimestampValue(a.e, a.d));
 }
 function moduleTagValue(mod, entry) {
     if (!mod.tagField) return "";
