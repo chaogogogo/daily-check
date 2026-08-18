@@ -480,7 +480,7 @@ function switchTab(tab, navKey) {
     if (tab === "data") { renderHistory(); renderBackupTip(); ensurePersistentStorage(); }
     if (tab === "record") { renderRecordFilterRow(); renderRecordTimeline(); }
     if (tab === "growth") renderGrowthOverview();
-    if (tab === "health") renderHealthOverview();
+    if (tab === "health") { renderWeight(); renderHealthOverview(); }
     if (tab === "review") renderReviewOverview();
     if (tab === "todos") renderTodoCenter();
     if (tab === "settings") renderProfile();
