@@ -1685,16 +1685,18 @@ function renderBowel() {
 }
 
 /* ==================== 体重 / 睡眠 / 孕期反应 ==================== */
-function saveWeight() {
+function saveWeight(event) {
+    if (event) event.preventDefault();
+    const form = document.getElementById("weightForm");
     const input = document.getElementById("weightInput");
     const v = parseFloat(input.value);
     if (!v || v <= 0) { alert("请输入有效体重"); return; }
     const noteInput = document.getElementById("weightNote");
     const note = noteInput.value.trim();
     day().weight = { value: v, time: nowTime(), note };
-    input.value = "";
-    noteInput.value = "";
-    save(); renderWeight({ keepFormEmpty: true }); renderTimeline(); renderRecordTimeline();
+    save(); renderWeight(); renderTimeline(); renderRecordTimeline();
+    if (form) form.reset();
+    else { input.value = ""; noteInput.value = ""; }
     flash("weightSaved");
 }
 function lastWeightBefore(d) {
@@ -1703,14 +1705,11 @@ function lastWeightBefore(d) {
     const ld = dates[dates.length - 1];
     return { d: ld, value: store.days[ld].weight.value };
 }
-function renderWeight(options) {
+function renderWeight() {
     const o = day();
     const input = document.getElementById("weightInput");
-    const keepFormEmpty = !!(options && options.keepFormEmpty);
-    if (!keepFormEmpty) {
-        input.value = o.weight ? o.weight.value : "";
-        document.getElementById("weightNote").value = o.weight && o.weight.note ? o.weight.note : "";
-    }
+    input.value = o.weight ? o.weight.value : "";
+    document.getElementById("weightNote").value = o.weight && o.weight.note ? o.weight.note : "";
     const prev = lastWeightBefore(currentDate);
     let info = "";
     if (o.weight && prev) {

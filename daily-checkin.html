@@ -9,10 +9,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="CC GOGOGO">
     <meta name="theme-color" content="#355a4f">
-    <link rel="apple-touch-icon" href="icon-180.png?v=73">
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=73">
-    <link rel="manifest" href="manifest.json?v=73">
-    <link rel="stylesheet" href="style.css?v=73">
+    <link rel="apple-touch-icon" href="icon-180.png?v=74">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=74">
+    <link rel="manifest" href="manifest.json?v=74">
+    <link rel="stylesheet" href="style.css?v=74">
 </head>
 
 <body>
@@ -313,14 +313,16 @@
             <div class="card collapsible" id="card-weight" data-collapse="h-weight">
                 <h2 onclick="toggleCard(this)"><span class="tico" data-ic="scale"></span>体重记录<span class="chevron-icon"
                         data-ic="chevron-down"></span></h2>
-                <div class="btn-row" style="margin-top:0">
-                    <input type="number" step="0.1" min="0" inputmode="decimal" id="weightInput" placeholder="今日体重 kg"
-                        style="flex:1;min-width:140px">
-                    <button class="btn" onclick="saveWeight()">保存</button>
-                    <span class="saved-tip" id="weightSaved"></span>
-                </div>
-                <textarea id="weightNote" rows="2" placeholder="体重变化心得（可选）：如吃多了 / 水肿 / 运动后……"
-                    style="margin-top:8px"></textarea>
+                <form id="weightForm" onsubmit="saveWeight(event)" autocomplete="off">
+                    <div class="btn-row" style="margin-top:0">
+                        <input type="number" step="0.1" min="0" inputmode="decimal" id="weightInput"
+                            placeholder="今日体重 kg" style="flex:1;min-width:140px">
+                        <button class="btn" type="submit">保存</button>
+                        <span class="saved-tip" id="weightSaved"></span>
+                    </div>
+                    <textarea id="weightNote" rows="2" placeholder="体重变化心得（可选）：如吃多了 / 水肿 / 运动后……"
+                        style="margin-top:8px"></textarea>
+                </form>
                 <div id="weightInfo" style="font-size:13px;color:var(--text-light);margin-top:8px"></div>
                 <div class="entry-list" id="weightHistory"></div>
             </div>
@@ -711,7 +713,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=73"></script>
+    <script src="app.js?v=74"></script>
 </body>
 
 </html>
