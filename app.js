@@ -480,7 +480,7 @@ function switchTab(tab, navKey) {
     if (tab === "data") { renderHistory(); renderBackupTip(); ensurePersistentStorage(); }
     if (tab === "record") { renderRecordFilterRow(); renderRecordTimeline(); }
     if (tab === "growth") renderGrowthOverview();
-    if (tab === "health") renderHealthOverview();
+    if (tab === "health") { renderWeight(); renderHealthOverview(); }
     if (tab === "review") renderReviewOverview();
     if (tab === "todos") renderTodoCenter();
     if (tab === "settings") renderProfile();
@@ -1687,7 +1687,6 @@ function renderBowel() {
 /* ==================== 体重 / 睡眠 / 孕期反应 ==================== */
 function saveWeight(event) {
     if (event) event.preventDefault();
-    const form = document.getElementById("weightForm");
     const input = document.getElementById("weightInput");
     const v = parseFloat(input.value);
     if (!v || v <= 0) { alert("请输入有效体重"); return; }
@@ -1695,8 +1694,6 @@ function saveWeight(event) {
     const note = noteInput.value.trim();
     day().weight = { value: v, time: nowTime(), note };
     save(); renderWeight(); renderTimeline(); renderRecordTimeline();
-    if (form) form.reset();
-    else { input.value = ""; noteInput.value = ""; }
     flash("weightSaved");
 }
 function lastWeightBefore(d) {
@@ -1707,9 +1704,14 @@ function lastWeightBefore(d) {
 }
 function renderWeight() {
     const o = day();
-    const input = document.getElementById("weightInput");
-    input.value = o.weight ? o.weight.value : "";
-    document.getElementById("weightNote").value = o.weight && o.weight.note ? o.weight.note : "";
+    const form = document.getElementById("weightForm");
+    if (form) form.reset();
+    else {
+        const input = document.getElementById("weightInput");
+        const noteInput = document.getElementById("weightNote");
+        if (input) input.value = "";
+        if (noteInput) noteInput.value = "";
+    }
     const prev = lastWeightBefore(currentDate);
     let info = "";
     if (o.weight && prev) {
