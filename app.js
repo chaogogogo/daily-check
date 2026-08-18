@@ -1692,9 +1692,9 @@ function saveWeight() {
     const noteInput = document.getElementById("weightNote");
     const note = noteInput.value.trim();
     day().weight = { value: v, time: nowTime(), note };
-    save(); renderWeight(); renderTimeline(); renderRecordTimeline();
     input.value = "";
     noteInput.value = "";
+    save(); renderWeight({ keepFormEmpty: true }); renderTimeline(); renderRecordTimeline();
     flash("weightSaved");
 }
 function lastWeightBefore(d) {
@@ -1703,11 +1703,14 @@ function lastWeightBefore(d) {
     const ld = dates[dates.length - 1];
     return { d: ld, value: store.days[ld].weight.value };
 }
-function renderWeight() {
+function renderWeight(options) {
     const o = day();
     const input = document.getElementById("weightInput");
-    input.value = o.weight ? o.weight.value : "";
-    document.getElementById("weightNote").value = o.weight && o.weight.note ? o.weight.note : "";
+    const keepFormEmpty = !!(options && options.keepFormEmpty);
+    if (!keepFormEmpty) {
+        input.value = o.weight ? o.weight.value : "";
+        document.getElementById("weightNote").value = o.weight && o.weight.note ? o.weight.note : "";
+    }
     const prev = lastWeightBefore(currentDate);
     let info = "";
     if (o.weight && prev) {

@@ -1,12 +1,17 @@
-const CACHE = "cc-gogogo-v72";
-const ASSETS = ["./daily-checkin.html", "./style.css?v=72", "./app.js?v=72", "./manifest.json", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
+const CACHE = "cc-gogogo-v73";
+const ASSETS = ["./daily-checkin.html", "./style.css?v=73", "./app.js?v=73", "./manifest.json?v=73", "./icon-180.png?v=73", "./icon-192.png?v=73", "./icon-512.png?v=73"];
 
 self.addEventListener("install", e => {
-    e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+    e.waitUntil(Promise.all([
+        self.skipWaiting(),
+        caches.open(CACHE).then(c => c.addAll(ASSETS)),
+    ]));
 });
 self.addEventListener("activate", e => {
-    e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))));
-    self.clients.claim();
+    e.waitUntil(Promise.all([
+        caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))),
+        self.clients.claim(),
+    ]));
 });
 // 页面点击「立即更新」后，让等待中的新版本立即接管
 self.addEventListener("message", e => {
