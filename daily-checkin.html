@@ -9,13 +9,28 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="CC GOGOGO">
     <meta name="theme-color" content="#355a4f">
-    <link rel="apple-touch-icon" href="icon-180.png?v=75">
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=75">
-    <link rel="manifest" href="manifest.json?v=75">
-    <link rel="stylesheet" href="style.css?v=75">
+    <link rel="apple-touch-icon" href="icon-180.png?v=76">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=76">
+    <link rel="manifest" href="manifest.json?v=76">
+    <link rel="stylesheet" href="style.css?v=76">
 </head>
 
 <body>
+
+    <div class="startup-recovery" id="startupRecovery" role="alertdialog" aria-modal="true"
+        aria-labelledby="startupRecoveryTitle" hidden>
+        <div class="startup-recovery-card">
+            <div class="startup-recovery-mark" aria-hidden="true">🌿</div>
+            <h1 id="startupRecoveryTitle">应用暂时没有正常启动</h1>
+            <p id="startupRecoveryMessage">本地记录仍保留在手机中，请先下载备份，再尝试恢复。</p>
+            <div class="startup-recovery-tip">请不要卸载 App，也不要先清除 Safari 网站数据，否则可能丢失本地记录。</div>
+            <div class="startup-recovery-actions">
+                <button type="button" class="btn" onclick="location.reload()">重新加载</button>
+                <button type="button" class="btn ghost" onclick="ccDownloadRecoveryData()">下载记录备份</button>
+                <button type="button" class="startup-recovery-reset" onclick="ccRecoverApp()">备份后进入空白应用</button>
+            </div>
+        </div>
+    </div>
 
     <div id="updateBar" class="update-bar" style="display:none">
         <span>🔄 发现新版本</span>
@@ -713,7 +728,60 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=75"></script>
+    <script>
+        (function () {
+            var storeKey = "dailyCheckin.v1";
+            var recoveryKey = "dailyCheckin.recovery.v1";
+            var bootTimer;
+            function recoveryPanel() { return document.getElementById("startupRecovery"); }
+            window.__showBootFailure = function (message) {
+                if (document.documentElement.dataset.appReady === "1" && !message) return;
+                var panel = recoveryPanel();
+                var text = document.getElementById("startupRecoveryMessage");
+                if (text && message) text.textContent = message;
+                if (panel) panel.hidden = false;
+            };
+            window.__markAppReady = function () {
+                document.documentElement.dataset.appReady = "1";
+                clearTimeout(bootTimer);
+                var panel = recoveryPanel();
+                if (panel) panel.hidden = true;
+            };
+            window.ccDownloadRecoveryData = function () {
+                var raw = localStorage.getItem(storeKey) || localStorage.getItem(recoveryKey);
+                if (!raw) { alert("当前没有可下载的本地记录"); return; }
+                var blob = new Blob([raw], { type: "application/json" });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement("a");
+                a.href = url;
+                a.download = "CC-GOGOGO_白屏恢复备份_" + new Date().toISOString().slice(0, 10) + ".json";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+            };
+            window.ccRecoverApp = function () {
+                if (!confirm("仅在已经下载备份后继续。应用会暂时使用空白数据启动，原始记录仍会保存在恢复副本中。")) return;
+                try {
+                    var raw = localStorage.getItem(storeKey);
+                    if (raw) localStorage.setItem(recoveryKey, raw);
+                    localStorage.removeItem(storeKey);
+                    location.reload();
+                } catch (e) {
+                    alert("无法保存恢复副本，未清除任何数据。请先下载备份。\n" + e.message);
+                }
+            };
+            window.addEventListener("error", function () {
+                if (document.documentElement.dataset.appReady !== "1") {
+                    window.__showBootFailure("启动文件加载失败或缓存不完整。请保持联网并重新加载；本地记录不会因此被删除。");
+                }
+            }, true);
+            bootTimer = setTimeout(function () {
+                if (document.documentElement.dataset.appReady !== "1") window.__showBootFailure();
+            }, 5000);
+        })();
+    </script>
+    <script src="app.js?v=76"></script>
 </body>
 
 </html>
