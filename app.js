@@ -1,6 +1,8 @@
 "use strict";
 /* ==================== 数据层 ==================== */
 const STORE_KEY = "dailyCheckin.v1";
+const STORE_RECOVERY_KEY = "dailyCheckin.recovery.v1";
+let startupDataIssue = "";
 const HABITS = [
     { id: "english", icon: "🎧", name: "英语提升", auto: true },
     { id: "tech", icon: "💻", name: "技术学习" },
@@ -115,6 +117,117 @@ function normalizeTaskRecord(t, createdDate, index) {
     if (Object.prototype.hasOwnProperty.call(t, "time")) { delete t.time; changed = true; }
     return changed;
 }
+function isRecord(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function normalizeTextEntries(value) {
+    if (!Array.isArray(value)) return [];
+    return value.map(item => isRecord(item) ? item : { text: String(item == null ? "" : item), time: "" });
+}
+function normalizeStoreShape(s) {
+    let changed = false;
+    if (!isRecord(s.days)) { s.days = {}; changed = true; }
+    if (!isRecord(s.settings)) { s.settings = {}; changed = true; }
+
+    const defaultSettingsLists = {
+        supplements: ["DHA", "钙", "铁", "复合维生素"],
+        symptomTags: ["腰疼", "背疼", "手疼", "腿疼", "腿麻", "肚子疼", "胃酸", "胃疼"],
+        thoughtTags: ["梦", "情绪", "技能", "工作", "idea", "复盘", "人际", "好物", "其他"],
+    };
+    Object.keys(defaultSettingsLists).forEach(key => {
+        if (!Array.isArray(s.settings[key])) { s.settings[key] = defaultSettingsLists[key].slice(); changed = true; }
+        else {
+            const clean = s.settings[key].map(v => String(v == null ? "" : v).trim()).filter(Boolean);
+            if (clean.length !== s.settings[key].length || clean.some((v, i) => v !== s.settings[key][i])) {
+                s.settings[key] = clean;
+                changed = true;
+            }
+        }
+    });
+    ["customHabits", "habitOrder"].forEach(key => {
+        if (s.settings[key] != null && !Array.isArray(s.settings[key])) { s.settings[key] = []; changed = true; }
+    });
+    if (Array.isArray(s.settings.customHabits)) {
+        const clean = s.settings.customHabits.filter(isRecord).map(h => ({
+            id: String(h.id || `custom_${Math.random().toString(36).slice(2, 9)}`),
+            icon: String(h.icon || "⭐"),
+            name: String(h.name || "自定义习惯"),
+        }));
+        if (clean.length !== s.settings.customHabits.length || clean.some((h, i) =>
+            h.id !== s.settings.customHabits[i].id || h.icon !== s.settings.customHabits[i].icon || h.name !== s.settings.customHabits[i].name)) {
+            s.settings.customHabits = clean;
+            changed = true;
+        }
+    }
+    ["habitHidden", "collapsed", "listCollapsed", "hideModules"].forEach(key => {
+        if (s.settings[key] != null && !isRecord(s.settings[key])) { s.settings[key] = {}; changed = true; }
+    });
+    ["appTitle", "profileSubtitle"].forEach(key => {
+        if (s.settings[key] != null && typeof s.settings[key] !== "string") {
+            s.settings[key] = String(s.settings[key]);
+            changed = true;
+        }
+    });
+
+    Object.keys(s.days).forEach(d => {
+        if (!isRecord(s.days[d])) { s.days[d] = {}; changed = true; }
+        const o = s.days[d];
+        ["habits", "supplements", "meals"].forEach(key => {
+            if (o[key] != null && !isRecord(o[key])) { o[key] = {}; changed = true; }
+        });
+        ["waterLogs", "snacks", "bowels", "expenses", "wishes", "symptoms"].forEach(key => {
+            if (o[key] != null && !Array.isArray(o[key])) { o[key] = []; changed = true; }
+            if (Array.isArray(o[key])) {
+                const clean = o[key].filter(isRecord);
+                if (clean.length !== o[key].length) { o[key] = clean; changed = true; }
+            }
+        });
+        ["reviews", "gratitude", "exercises", "pregDiaries", "techLogs", "media", "thoughts", "knowledge", "tasks"].forEach(key => {
+            if (o[key] == null) return;
+            const clean = normalizeTextEntries(o[key]);
+            if (!Array.isArray(o[key]) || clean.some((v, i) => v !== o[key][i])) { o[key] = clean; changed = true; }
+        });
+        ["review", "pregDiary"].forEach(key => {
+            if (o[key] != null && typeof o[key] !== "string") { o[key] = String(o[key]); changed = true; }
+        });
+        if (o.english != null && !isRecord(o.english)) { o.english = { tasks: {}, phrases: [] }; changed = true; }
+        if (isRecord(o.english)) {
+            if (o.english.tasks != null && !isRecord(o.english.tasks)) { o.english.tasks = {}; changed = true; }
+            if (isRecord(o.english.tasks)) {
+                Object.keys(o.english.tasks).forEach(key => {
+                    if (!isRecord(o.english.tasks[key])) {
+                        delete o.english.tasks[key];
+                        changed = true;
+                        return;
+                    }
+                    const rec = o.english.tasks[key];
+                    if (rec.notes != null) {
+                        const clean = normalizeTextEntries(rec.notes);
+                        if (!Array.isArray(rec.notes) || clean.some((v, i) => v !== rec.notes[i])) {
+                            rec.notes = clean;
+                            changed = true;
+                        }
+                    }
+                });
+            }
+            if (o.english.phrases != null) {
+                const clean = normalizeTextEntries(o.english.phrases);
+                if (!Array.isArray(o.english.phrases) || clean.some((v, i) => v !== o.english.phrases[i])) {
+                    o.english.phrases = clean;
+                    changed = true;
+                }
+            }
+            if (o.english.phrase != null && typeof o.english.phrase !== "string") {
+                o.english.phrase = String(o.english.phrase);
+                changed = true;
+            }
+        }
+        ["weight", "sleep"].forEach(key => {
+            if (o[key] != null && !isRecord(o[key])) { o[key] = null; changed = true; }
+        });
+    });
+    return changed;
+}
 function migrateStoreData(s) {
     let changed = false;
     Object.keys(s.days || {}).forEach(d => {
@@ -137,18 +250,34 @@ let todoCenterShowDone = false;
 
 function loadStore() {
     let s;
+    let raw = "";
+    let parseFailed = false;
     try {
-        const raw = localStorage.getItem(STORE_KEY);
+        raw = localStorage.getItem(STORE_KEY) || "";
         if (raw) s = JSON.parse(raw);
-    } catch (e) { console.error(e); }
-    if (!s || typeof s !== "object") s = {};
-    s.days = s.days || {};
-    s.settings = s.settings || {};
-    s.settings.supplements = s.settings.supplements || ["DHA", "钙", "铁", "复合维生素"];
-    s.settings.symptomTags = s.settings.symptomTags || ["腰疼", "背疼", "手疼", "腿疼", "腿麻", "肚子疼", "胃酸", "胃疼"];
-    s.settings.thoughtTags = s.settings.thoughtTags || ["梦", "情绪", "技能", "工作", "idea", "复盘", "人际", "好物", "其他"];
-    if (migrateStoreData(s)) {
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        parseFailed = true;
+        startupDataIssue = "本地记录无法读取。原始数据仍保留，请先下载备份，再尝试恢复应用。";
+        if (raw) {
+            try { localStorage.setItem(STORE_RECOVERY_KEY, raw); } catch (backupError) { console.error(backupError); }
+        }
+    }
+    if (!isRecord(s)) s = {};
+    try {
+        const repaired = normalizeStoreShape(s);
+        const migrated = migrateStoreData(s);
+        if ((repaired || migrated) && !parseFailed) {
+            if (raw) {
+                try { localStorage.setItem(STORE_RECOVERY_KEY, raw); } catch (backupError) { console.error(backupError); }
+            }
+            localStorage.setItem(STORE_KEY, JSON.stringify(s));
+        }
+    } catch (e) {
+        console.error(e);
+        startupDataIssue = "本地记录迁移失败。数据没有被清除，请先下载备份。";
+        s = { days: {}, settings: {} };
+        normalizeStoreShape(s);
     }
     return s;
 }
@@ -2757,22 +2886,33 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
 window.addEventListener("focus", checkDayRollover);
 
 /* ==================== 初始化 ==================== */
+function showStartupRecovery(message) {
+    if (typeof window.__showBootFailure === "function") window.__showBootFailure(message);
+}
 (function init() {
-    const now = new Date();
-    calYear = now.getFullYear(); calMonth = now.getMonth();
-    setDate(currentDate);
-    renderIcons();
-    selectKType(document.querySelector('#knowledgeTypeRow button[data-ktype="播客"]'));
-    selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
-    renderThoughtTagRow();
-    renderRecordFilterRow();
-    renderAppTitle();
-    renderAll();
-    switchTab("home", "home");
-    applyCollapsedState();
-    applyModuleVisibility();
-    ensurePersistentStorage();
-    registerServiceWorker();
+    try {
+        const now = new Date();
+        calYear = now.getFullYear(); calMonth = now.getMonth();
+        setDate(currentDate);
+        renderIcons();
+        selectKType(document.querySelector('#knowledgeTypeRow button[data-ktype="播客"]'));
+        selectMediaTag(document.querySelector('#mediaTagRow button[data-mtag="小红书"]'));
+        renderThoughtTagRow();
+        renderRecordFilterRow();
+        renderAppTitle();
+        renderAll();
+        switchTab("home", "home");
+        applyCollapsedState();
+        applyModuleVisibility();
+        ensurePersistentStorage().catch(e => console.error(e));
+        if (typeof window.__markAppReady === "function") window.__markAppReady();
+        if (startupDataIssue) showStartupRecovery(startupDataIssue);
+    } catch (e) {
+        console.error("App startup failed", e);
+        showStartupRecovery("应用启动时遇到异常。本地记录仍在，请先下载备份，再尝试重新加载。" + (e && e.message ? `\n\n错误信息：${e.message}` : ""));
+    } finally {
+        registerServiceWorker();
+    }
 })();
 
 /* ==================== 版本更新（部署后自动检测并提示刷新） ==================== */
